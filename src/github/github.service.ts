@@ -59,7 +59,7 @@ export class GitHubService {
     /**
      * Clone repository to temporary directory
      */
-    async cloneRepository(repoUrl: string, repoName: string): Promise<string> {
+    async cloneRepository(repoUrl: string, repoName: string, accessToken?: string): Promise<string> {
         const repoPath = path.join(this.tempDir, repoName);
 
         try {
@@ -68,8 +68,21 @@ export class GitHubService {
                 fs.rmSync(repoPath, { recursive: true, force: true });
             }
 
-            // Clone the repository
-            await execAsync(`git clone "${repoUrl}" "${repoPath}"`);
+            // Configure git to not prompt for credentials
+            await execAsync('git config --global credential.helper store');
+            
+            // Clone the repository with authentication if token is provided
+            let cloneCommand: string;
+            if (accessToken) {
+                // Insert token into URL for authentication
+                const urlWithToken = repoUrl.replace('https://', `https://${accessToken}@`);
+                cloneCommand = `git clone "${urlWithToken}" "${repoPath}"`;
+            } else {
+                // Use original URL (for public repos)
+                cloneCommand = `git clone "${repoUrl}" "${repoPath}"`;
+            }
+
+            await execAsync(cloneCommand);
             this.logger.log(`Repository cloned to: ${repoPath}`);
 
             return repoPath;

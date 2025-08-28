@@ -52,7 +52,7 @@ export class ScopingService {
       // Step 2: Clone and analyze the repository
       const repoUrl = repoInfo.clone_url;
       const repoName = `${owner}-${repo}`;
-      const repoPath = await this.githubService.cloneRepository(repoUrl, repoName);
+      const repoPath = await this.githubService.cloneRepository(repoUrl, repoName, accessToken);
 
       // Step 3: Analyze the repository (with selected files if provided)
       const analysis = await this.githubService.analyzeRepository(repoPath, selectedFiles);
