@@ -4,14 +4,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ScopingModule } from './scoping/scoping.module';
 import { AuthModule } from './auth/auth.module';
+import { StaticAnalysisModule } from './static-analysis/static-analysis.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    DatabaseModule,
     ScopingModule,
     AuthModule,
+    StaticAnalysisModule,
   ],
   controllers: [AppController],
   providers: [AppService],

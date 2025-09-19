@@ -10,4 +10,4 @@ import { AIModule } from '../ai/ai.module';
   providers: [ScopingService],
   exports: [ScopingService],
 })
-export class ScopingModule { }
+export class ScopingModule {}

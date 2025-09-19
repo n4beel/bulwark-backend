@@ -31,8 +31,8 @@ export class ScopingService {
 
   constructor(
     private readonly githubService: GitHubService,
-    private readonly aiService: AIService
-  ) { }
+    private readonly aiService: AIService,
+  ) {}
 
   /**
    * Generate a pre-audit report for a repository
@@ -47,22 +47,35 @@ export class ScopingService {
 
     try {
       // Step 1: Get repository information from GitHub API
-      const repoInfo = await this.githubService.getRepositoryInfo(owner, repo, accessToken);
+      const repoInfo = await this.githubService.getRepositoryInfo(
+        owner,
+        repo,
+        accessToken,
+      );
 
       // Step 2: Clone and analyze the repository
       const repoUrl = repoInfo.clone_url;
       const repoName = `${owner}-${repo}`;
-      const repoPath = await this.githubService.cloneRepository(repoUrl, repoName, accessToken);
+      const repoPath = await this.githubService.cloneRepository(
+        repoUrl,
+        repoName,
+        accessToken,
+      );
 
       // Step 3: Analyze the repository (with selected files if provided)
-      const analysis = await this.githubService.analyzeRepository(repoPath, selectedFiles);
+      const analysis = await this.githubService.analyzeRepository(
+        repoPath,
+        selectedFiles,
+      );
 
       // Step 4: Generate audit estimates using AI
       let auditEstimate: AuditEstimate;
       try {
         auditEstimate = await this.aiService.generateAuditEstimate(analysis);
       } catch (error) {
-        this.logger.warn(`AI estimation failed, falling back to internal calculation: ${error.message}`);
+        this.logger.warn(
+          `AI estimation failed, falling back to internal calculation: ${error.message}`,
+        );
         auditEstimate = this.calculateAuditEstimate(analysis);
       }
 
@@ -84,11 +97,14 @@ export class ScopingService {
         generatedAt: new Date(),
       };
 
-      this.logger.log(`Pre-audit report generated successfully for ${owner}/${repo}`);
+      this.logger.log(
+        `Pre-audit report generated successfully for ${owner}/${repo}`,
+      );
       return report;
-
     } catch (error) {
-      this.logger.error(`Failed to generate pre-audit report: ${error.message}`);
+      this.logger.error(
+        `Failed to generate pre-audit report: ${error.message}`,
+      );
       throw new Error(`Failed to generate pre-audit report: ${error.message}`);
     }
   }
@@ -96,7 +112,9 @@ export class ScopingService {
   /**
    * Calculate audit estimates based on repository analysis (fallback method)
    */
-  private calculateAuditEstimate(analysis: RepositoryMetadata['analysis']): AuditEstimate {
+  private calculateAuditEstimate(
+    analysis: RepositoryMetadata['analysis'],
+  ): AuditEstimate {
     const { totalLines, solidityFiles, complexity, dependencies } = analysis;
 
     let baseDuration = 0;
@@ -136,7 +154,7 @@ export class ScopingService {
     }
 
     // Adjust based on dependencies (more dependencies = more integration points to audit)
-    const dependencyMultiplier = Math.min(1 + (dependencies.length * 0.1), 1.5);
+    const dependencyMultiplier = Math.min(1 + dependencies.length * 0.1, 1.5);
     baseDuration = Math.round(baseDuration * dependencyMultiplier);
     baseCost = Math.round(baseCost * dependencyMultiplier);
 
@@ -149,31 +167,31 @@ export class ScopingService {
         min: Math.max(3, baseDuration - durationVariance),
         max: baseDuration + durationVariance,
         unit: 'days' as const,
-        reasoning: 'Internal calculation based on repository complexity and size'
+        reasoning:
+          'Internal calculation based on repository complexity and size',
       },
       resources: {
         seniorAuditors,
         juniorAuditors,
-        reasoning: 'Resource allocation based on project complexity and scope'
+        reasoning: 'Resource allocation based on project complexity and scope',
       },
       cost: {
         min: Math.max(5000, baseCost - costVariance),
         max: baseCost + costVariance,
         currency: 'USD' as const,
-        reasoning: 'Cost estimate based on industry standards and project scope'
+        reasoning:
+          'Cost estimate based on industry standards and project scope',
       },
       riskFactors: [
         'Complexity of smart contract interactions',
         'Number of external dependencies',
-        'Test coverage adequacy'
+        'Test coverage adequacy',
       ],
       specialConsiderations: [
         'Framework-specific security considerations',
         'Integration points with external protocols',
-        'Gas optimization requirements'
-      ]
+        'Gas optimization requirements',
+      ],
     };
   }
-
-
 }
