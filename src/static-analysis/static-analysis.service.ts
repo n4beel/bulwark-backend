@@ -154,6 +154,67 @@ export class StaticAnalysisService {
     /**
      * Debug framework detection - returns detailed info about repository structure
      */
+    async analyzeUploadedContract(
+        extractedPath: string,
+        projectName: string,
+        originalFilename: string,
+        selectedFiles?: string[],
+    ): Promise<StaticAnalysisReport> {
+        const startTime = Date.now();
+        const memoryStart = process.memoryUsage().heapUsed;
+
+        this.logger.log(`Starting static analysis of uploaded contract: ${projectName}`);
+
+        try {
+            // Step 1: Detect framework
+            const framework = this.detectFramework(extractedPath);
+
+            // Step 2: Analyze Rust files
+            const analysisFactors = this.analyzeRustFiles(
+                extractedPath,
+                selectedFiles,
+            );
+
+            // Step 3: Calculate complexity scores
+            const scores = this.calculateComplexityScores(analysisFactors);
+
+            // Step 4: Build report
+            const endTime = Date.now();
+            const memoryEnd = process.memoryUsage().heapUsed;
+
+            const report: StaticAnalysisReport = {
+                repository: projectName,
+                repositoryUrl: `uploaded://${originalFilename}`,
+                language: 'rust',
+                framework,
+                analysisFactors,
+                scores,
+                performance: {
+                    analysisTime: endTime - startTime,
+                    memoryUsage: Math.max(0, memoryEnd - memoryStart),
+                },
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            // Step 5: Save report to MongoDB
+            try {
+                const savedReport = new this.staticAnalysisModel(report);
+                await savedReport.save();
+                this.logger.log(`Report saved to database for uploaded contract: ${projectName}`);
+            } catch (dbError) {
+                this.logger.error(`Failed to save report to database: ${dbError.message}`);
+            }
+
+            this.logger.log(`Static analysis completed for uploaded contract: ${projectName}`);
+            return report;
+
+        } catch (error) {
+            this.logger.error(`Static analysis failed for uploaded contract: ${error.message}`);
+            throw error;
+        }
+    }
+
     async debugFrameworkDetection(owner: string, repo: string, accessToken: string): Promise<any> {
         try {
             // Step 1: Get repository information

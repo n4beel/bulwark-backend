@@ -6,6 +6,7 @@ import { ScopingModule } from './scoping/scoping.module';
 import { AuthModule } from './auth/auth.module';
 import { StaticAnalysisModule } from './static-analysis/static-analysis.module';
 import { DatabaseModule } from './database/database.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { DatabaseModule } from './database/database.module';
     ScopingModule,
     AuthModule,
     StaticAnalysisModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

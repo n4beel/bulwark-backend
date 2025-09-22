@@ -11,12 +11,16 @@ import {
     StaticAnalysisReport,
 } from './static-analysis.service';
 import { StaticAnalysisDto, StaticAnalysisReportDocument } from './dto/static-analysis.dto';
+import { UploadsService } from '../uploads/uploads.service';
 
 @Controller('static-analysis')
 export class StaticAnalysisController {
     private readonly logger = new Logger(StaticAnalysisController.name);
 
-    constructor(private readonly staticAnalysisService: StaticAnalysisService) { }
+    constructor(
+        private readonly staticAnalysisService: StaticAnalysisService,
+        private readonly uploadsService: UploadsService,
+    ) { }
 
     @Post('analyze-rust-contract')
     async analyzeRustContract(
@@ -122,6 +126,47 @@ export class StaticAnalysisController {
             this.logger.error(`Debug failed: ${error.message}`);
             throw new HttpException(
                 'Debug failed',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    @Post('analyze-uploaded-contract')
+    async analyzeUploadedContract(
+        @Body() dto: { extractedPath: string; selectedFiles?: string[] },
+    ): Promise<StaticAnalysisReport> {
+        try {
+            this.logger.log(`Analyzing uploaded contract at: ${dto.extractedPath}`);
+
+            // Get upload session to extract repository info
+            const uploadSession = this.uploadsService.getUploadSession(dto.extractedPath);
+            if (!uploadSession) {
+                throw new HttpException(
+                    'Upload session not found. Please upload files first using /uploads/discover-files',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            // Use static analysis service with uploaded files
+            const report = await this.staticAnalysisService.analyzeUploadedContract(
+                dto.extractedPath,
+                uploadSession.projectName,
+                uploadSession.originalFilename,
+                dto.selectedFiles,
+            );
+
+            this.logger.log(`Successfully analyzed uploaded contract: ${uploadSession.projectName}`);
+            return report;
+
+        } catch (error) {
+            this.logger.error(`Failed to analyze uploaded contract: ${error.message}`);
+
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            throw new HttpException(
+                `Analysis failed: ${error.message}`,
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }
