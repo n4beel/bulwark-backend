@@ -444,4 +444,12 @@ export class UploadsService {
     public getUploadSession(extractedPath: string): any {
         return this.uploadSessions.get(extractedPath);
     }
+
+    /**
+     * Remove upload session (cleanup after analysis)
+     */
+    public removeUploadSession(extractedPath: string): void {
+        this.uploadSessions.delete(extractedPath);
+        this.logger.log(`Removed upload session for: ${extractedPath}`);
+    }
 }

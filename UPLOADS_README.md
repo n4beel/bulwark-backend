@@ -177,7 +177,10 @@ curl -X POST \
 ### Session Management
 - Upload sessions stored in memory (use Redis in production)
 - Sessions link `extractedPath` to upload metadata
-- Automatic cleanup after analysis completion
+- **Automatic cleanup after analysis completion**:
+  - Extracted directory is deleted from filesystem
+  - Upload session is removed from memory
+  - Cleanup occurs both on success and error scenarios
 
 ### File Structure
 - Mirrors GitHub API response format

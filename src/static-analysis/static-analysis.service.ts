@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { GitHubService } from '../github/github.service';
+import { UploadsService } from '../uploads/uploads.service';
 import {
     RustAnalysisFactors,
     ComplexityScores,
@@ -26,6 +27,7 @@ export class StaticAnalysisService {
 
     constructor(
         private readonly githubService: GitHubService,
+        private readonly uploadsService: UploadsService,
         @InjectModel(StaticAnalysisModel.name)
         private readonly staticAnalysisModel: Model<StaticAnalysisModel>,
     ) { }
@@ -207,10 +209,30 @@ export class StaticAnalysisService {
             }
 
             this.logger.log(`Static analysis completed for uploaded contract: ${projectName}`);
+
+            // Step 6: Cleanup extracted directory and upload session after analysis
+            try {
+                await this.cleanupExtractedDirectory(extractedPath);
+                this.uploadsService.removeUploadSession(extractedPath);
+                this.logger.log(`Cleaned up extracted directory and session: ${extractedPath}`);
+            } catch (cleanupError) {
+                this.logger.warn(`Failed to cleanup extracted directory and session: ${cleanupError.message}`);
+            }
+
             return report;
 
         } catch (error) {
             this.logger.error(`Static analysis failed for uploaded contract: ${error.message}`);
+
+            // Cleanup on error as well
+            try {
+                await this.cleanupExtractedDirectory(extractedPath);
+                this.uploadsService.removeUploadSession(extractedPath);
+                this.logger.log(`Cleaned up extracted directory and session after error: ${extractedPath}`);
+            } catch (cleanupError) {
+                this.logger.warn(`Failed to cleanup extracted directory and session after error: ${cleanupError.message}`);
+            }
+
             throw error;
         }
     }
@@ -1103,5 +1125,20 @@ export class StaticAnalysisService {
                 },
             },
         };
+    }
+
+    /**
+     * Cleanup extracted directory after analysis
+     */
+    private async cleanupExtractedDirectory(extractedPath: string): Promise<void> {
+        try {
+            if (fs.existsSync(extractedPath)) {
+                fs.rmSync(extractedPath, { recursive: true, force: true });
+                this.logger.log(`Cleaned up extracted directory: ${extractedPath}`);
+            }
+        } catch (error) {
+            this.logger.warn(`Failed to cleanup extracted directory: ${error.message}`);
+            throw error;
+        }
     }
 }
