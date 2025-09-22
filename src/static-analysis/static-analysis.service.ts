@@ -1128,6 +1128,495 @@ export class StaticAnalysisService {
     }
 
     /**
+     * Export reports to CSV format
+     */
+    async exportReportsToCSV(
+        reportIds?: string[],
+        factors?: string[],
+    ): Promise<{ csv: string; filename: string }> {
+        this.logger.log(`Exporting reports to CSV - IDs: ${reportIds?.length || 'all'}, Factors: ${factors?.length || 'all'}`);
+
+        try {
+            // Step 1: Get reports from database
+            let reports: any[];
+
+            if (reportIds && reportIds.length > 0) {
+                reports = await this.staticAnalysisModel.find({
+                    _id: { $in: reportIds }
+                }).exec();
+            } else {
+                reports = await this.staticAnalysisModel.find().exec();
+            }
+
+            if (reports.length === 0) {
+                throw new Error('No reports found for the specified criteria');
+            }
+
+            // Step 2: Get available factors metadata
+            const availableFactors = await this.getAvailableFactors();
+
+            // Step 3: Determine which factors to include
+            const factorsToInclude = factors && factors.length > 0
+                ? factors
+                : this.getAllFactorNames(availableFactors);
+
+            // Step 4: Generate CSV content
+            const csvContent = this.generateCSVContent(reports, factorsToInclude, availableFactors);
+
+            // Step 5: Generate filename
+            const timestamp = new Date().toISOString().split('T')[0];
+            const reportCount = reports.length;
+            const factorCount = factorsToInclude.length;
+            const filename = `static-analysis-export-${timestamp}-${reportCount}reports-${factorCount}factors.csv`;
+
+            this.logger.log(`CSV export completed: ${reports.length} reports, ${factorsToInclude.length} factors`);
+
+            return {
+                csv: csvContent,
+                filename,
+            };
+
+        } catch (error) {
+            this.logger.error(`CSV export failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all available factors with metadata
+     */
+    async getAvailableFactors(): Promise<any> {
+        return {
+            // Basic Report Info
+            basic: {
+                category: 'Basic Information',
+                description: 'Basic report metadata and identifiers',
+                factors: {
+                    _id: { name: 'Report ID', type: 'string', description: 'Unique identifier for the analysis report' },
+                    repository: { name: 'Repository', type: 'string', description: 'Name of the analyzed repository' },
+                    repositoryUrl: { name: 'Repository URL', type: 'string', description: 'URL of the analyzed repository' },
+                    language: { name: 'Language', type: 'string', description: 'Programming language (e.g., rust)' },
+                    framework: { name: 'Framework', type: 'string', description: 'Framework used (e.g., anchor, native)' },
+                    createdAt: { name: 'Created At', type: 'date', description: 'When the analysis was performed' },
+                    updatedAt: { name: 'Updated At', type: 'date', description: 'When the report was last updated' },
+                }
+            },
+
+            // Complexity Scores
+            scores: {
+                category: 'Complexity Scores',
+                description: 'Overall complexity scores for each category',
+                factors: {
+                    'scores.structural.score': { name: 'Structural Score', type: 'number', description: 'Overall structural complexity score (0-100)' },
+                    'scores.semantic.score': { name: 'Semantic Score', type: 'number', description: 'Overall semantic & security complexity score (0-100)' },
+                    'scores.systemic.score': { name: 'Systemic Score', type: 'number', description: 'Overall systemic & integration complexity score (0-100)' },
+                    'scores.economic.score': { name: 'Economic Score', type: 'number', description: 'Overall economic & functional complexity score (0-100)' },
+                    'scores.overall': { name: 'Overall Score', type: 'number', description: 'Combined complexity score (0-100)' },
+
+                    // Structural score details
+                    'scores.structural.details.totalLinesOfCode': { name: 'Structural - Total Lines Of Code', type: 'number', description: 'Lines of code from structural analysis' },
+                    'scores.structural.details.numContracts': { name: 'Structural - Number Of Contracts', type: 'number', description: 'Number of contracts from structural analysis' },
+                    'scores.structural.details.numFunctions': { name: 'Structural - Number Of Functions', type: 'number', description: 'Number of functions from structural analysis' },
+                    'scores.structural.details.numStateVariables': { name: 'Structural - State Variables', type: 'number', description: 'Number of state variables from structural analysis' },
+                    'scores.structural.details.avgCyclomaticComplexity': { name: 'Structural - Avg Cyclomatic Complexity', type: 'number', description: 'Average cyclomatic complexity from structural analysis' },
+                    'scores.structural.details.maxCyclomaticComplexity': { name: 'Structural - Max Cyclomatic Complexity', type: 'number', description: 'Maximum cyclomatic complexity from structural analysis' },
+                    'scores.structural.details.inheritanceDepth': { name: 'Structural - Inheritance Depth', type: 'number', description: 'Inheritance depth from structural analysis' },
+
+                    // Systemic score details
+                    'scores.systemic.details.externalDependencies.externalContractCalls': { name: 'Systemic - External Contract Calls', type: 'number', description: 'Number of external contract calls' },
+                    'scores.systemic.details.externalDependencies.uniqueFunctionCallsExternal': { name: 'Systemic - Unique External Function Calls', type: 'number', description: 'Number of unique external function calls' },
+                    'scores.systemic.details.standardInteractions.erc20Interactions': { name: 'Systemic - ERC20 Interactions', type: 'boolean', description: 'Whether contract interacts with ERC20 tokens' },
+                    'scores.systemic.details.standardInteractions.erc721Interactions': { name: 'Systemic - ERC721 Interactions', type: 'boolean', description: 'Whether contract interacts with ERC721 tokens' },
+                    'scores.systemic.details.standardInteractions.erc1155Interactions': { name: 'Systemic - ERC1155 Interactions', type: 'boolean', description: 'Whether contract interacts with ERC1155 tokens' },
+                    'scores.systemic.details.oracleUsage': { name: 'Systemic - Oracle Usage', type: 'array', description: 'Oracle usage details' },
+                    'scores.systemic.details.accessControlPattern.type': { name: 'Systemic - Access Control Type', type: 'string', description: 'Type of access control pattern' },
+                    'scores.systemic.details.accessControlPattern.complexity': { name: 'Systemic - Access Control Complexity', type: 'string', description: 'Complexity of access control pattern' },
+
+                    // Economic score details
+                    'scores.economic.details.financialPrimitives.isAMM': { name: 'Economic - Is AMM', type: 'boolean', description: 'Whether contract is an AMM' },
+                    'scores.economic.details.financialPrimitives.isLendingProtocol': { name: 'Economic - Is Lending Protocol', type: 'boolean', description: 'Whether contract is a lending protocol' },
+                    'scores.economic.details.financialPrimitives.isVestingContract': { name: 'Economic - Is Vesting Contract', type: 'boolean', description: 'Whether contract is a vesting contract' },
+                    'scores.economic.details.financialPrimitives.defiPatterns': { name: 'Economic - DeFi Patterns', type: 'array', description: 'Detected DeFi patterns' },
+                    'scores.economic.details.tokenomics.tokenTransfers': { name: 'Economic - Token Transfers', type: 'number', description: 'Number of token transfers' },
+                    'scores.economic.details.tokenomics.complexMathOperations': { name: 'Economic - Complex Math Operations', type: 'number', description: 'Number of complex math operations' },
+                    'scores.economic.details.tokenomics.timeDependentLogic': { name: 'Economic - Time Dependent Logic', type: 'boolean', description: 'Whether contract has time-dependent logic' },
+                    'scores.economic.details.economicRiskFactors': { name: 'Economic - Risk Factors', type: 'array', description: 'Economic risk factors' },
+                }
+            },
+
+            // Structural Complexity Factors
+            structural: {
+                category: 'Structural Complexity',
+                description: 'Code structure and organization metrics',
+                factors: {
+                    'analysisFactors.structuralComplexity.totalLinesOfCode': { name: 'Total Lines of Code', type: 'number', description: 'Total number of lines in all analyzed files' },
+                    'analysisFactors.structuralComplexity.numFunctions': { name: 'Number of Functions', type: 'number', description: 'Total number of functions defined' },
+                    'analysisFactors.structuralComplexity.numPrograms': { name: 'Number of Programs', type: 'number', description: 'Number of Solana programs defined' },
+                    'analysisFactors.structuralComplexity.numStateVariables': { name: 'State Variables', type: 'number', description: 'Number of state variables in account structs' },
+                    'analysisFactors.structuralComplexity.avgCyclomaticComplexity': { name: 'Avg Cyclomatic Complexity', type: 'number', description: 'Average cyclomatic complexity per function' },
+                    'analysisFactors.structuralComplexity.maxCyclomaticComplexity': { name: 'Max Cyclomatic Complexity', type: 'number', description: 'Maximum cyclomatic complexity in any function' },
+                    'analysisFactors.structuralComplexity.totalCyclomaticComplexity': { name: 'Total Cyclomatic Complexity', type: 'number', description: 'Sum of cyclomatic complexity across all functions' },
+                    'analysisFactors.structuralComplexity.instructionHandlers': { name: 'Instruction Handlers', type: 'number', description: 'Number of instruction handler functions' },
+                    'analysisFactors.structuralComplexity.nestedDepth': { name: 'Nested Depth', type: 'number', description: 'Maximum nesting depth in code blocks' },
+                }
+            },
+
+            // Semantic & Security Complexity Factors
+            semantic: {
+                category: 'Semantic & Security Complexity',
+                description: 'Security-related code patterns and vulnerabilities',
+                factors: {
+                    'analysisFactors.semanticComplexity.unsafeCodeBlocks': { name: 'Unsafe Code Blocks', type: 'number', description: 'Number of unsafe Rust code blocks' },
+                    'analysisFactors.semanticComplexity.memorySafetyIssues': { name: 'Memory Safety Issues', type: 'number', description: 'Detected memory safety concerns' },
+                    'analysisFactors.semanticComplexity.accessControlIssues': { name: 'Access Control Issues', type: 'number', description: 'Detected access control vulnerabilities' },
+                    'analysisFactors.semanticComplexity.panicUsage': { name: 'Panic Usage', type: 'number', description: 'Usage of panic! macro' },
+                    'analysisFactors.semanticComplexity.unwrapUsage': { name: 'Unwrap Usage', type: 'number', description: 'Usage of .unwrap() method' },
+                    'analysisFactors.semanticComplexity.errorHandlingPatterns': { name: 'Error Handling Patterns', type: 'number', description: 'Number of proper error handling patterns' },
+                    'analysisFactors.semanticComplexity.inputValidation': { name: 'Input Validation', type: 'number', description: 'Number of input validation checks' },
+                }
+            },
+
+            // Systemic & Integration Complexity Factors  
+            systemic: {
+                category: 'Systemic & Integration Complexity',
+                description: 'External integrations and cross-program interactions',
+                factors: {
+                    'analysisFactors.systemicComplexity.externalProgramCalls': { name: 'External Program Calls', type: 'number', description: 'Number of calls to external Solana programs' },
+                    'analysisFactors.systemicComplexity.uniqueExternalCalls': { name: 'Unique External Calls', type: 'number', description: 'Number of distinct external programs called' },
+                    'analysisFactors.systemicComplexity.cpiUsage': { name: 'CPI Usage', type: 'number', description: 'Cross-Program Invocation usage count' },
+                    'analysisFactors.systemicComplexity.constraintUsage': { name: 'Constraint Usage', type: 'number', description: 'Number of Anchor constraints used' },
+                    'analysisFactors.systemicComplexity.oracleUsage': { name: 'Oracle Usage', type: 'array', description: 'External oracle integrations (Pyth, Switchboard, etc.)' },
+                    'analysisFactors.systemicComplexity.crossProgramInvocations': { name: 'Cross Program Invocations', type: 'array', description: 'Detailed CPI call information' },
+                }
+            },
+
+            // Economic & Functional Complexity Factors
+            economic: {
+                category: 'Economic & Functional Complexity',
+                description: 'Financial operations and DeFi-related functionality',
+                factors: {
+                    'analysisFactors.economicComplexity.tokenTransfers': { name: 'Token Transfers', type: 'number', description: 'Number of token transfer operations' },
+                    'analysisFactors.economicComplexity.complexMathOperations': { name: 'Complex Math Operations', type: 'number', description: 'Usage of complex mathematical operations' },
+                    'analysisFactors.economicComplexity.timeDependentLogic': { name: 'Time-Dependent Logic', type: 'number', description: 'Reliance on timestamps or time-based logic' },
+                    'analysisFactors.economicComplexity.defiPatterns': { name: 'DeFi Patterns', type: 'array', description: 'Detected DeFi patterns (AMM, Lending, etc.)' },
+                    'analysisFactors.economicComplexity.economicRiskFactors': { name: 'Economic Risk Factors', type: 'array', description: 'Identified economic risk factors' },
+                }
+            },
+
+            // Anchor-Specific Features
+            anchor: {
+                category: 'Anchor-Specific Features',
+                description: 'Anchor framework specific patterns and features',
+                factors: {
+                    'analysisFactors.anchorSpecificFeatures.accountValidation': { name: 'Account Validation', type: 'number', description: 'Number of account validation patterns' },
+                    'analysisFactors.anchorSpecificFeatures.seedsUsage': { name: 'Seeds Usage', type: 'number', description: 'Usage of PDA seeds' },
+                    'analysisFactors.anchorSpecificFeatures.bumpsUsage': { name: 'Bumps Usage', type: 'number', description: 'Usage of bump seeds' },
+                    'analysisFactors.anchorSpecificFeatures.spaceMacroUsage': { name: 'Space Macro Usage', type: 'number', description: 'Usage of #[account] space calculations' },
+                    'analysisFactors.anchorSpecificFeatures.eventEmission': { name: 'Event Emission', type: 'number', description: 'Number of events emitted' },
+                }
+            },
+
+            // Performance Metrics
+            performance: {
+                category: 'Performance Metrics',
+                description: 'Analysis performance and resource usage',
+                factors: {
+                    'performance.analysisTime': { name: 'Analysis Time (ms)', type: 'number', description: 'Time taken to complete the analysis' },
+                    'performance.memoryUsage': { name: 'Memory Usage (bytes)', type: 'number', description: 'Memory consumed during analysis' },
+                }
+            },
+        };
+    }
+
+    /**
+     * Get all factor names from metadata
+     */
+    private getAllFactorNames(availableFactors: any): string[] {
+        const factorNames: string[] = [];
+
+        for (const category of Object.values(availableFactors)) {
+            const categoryData = category as any;
+            if (categoryData.factors) {
+                factorNames.push(...Object.keys(categoryData.factors));
+            }
+        }
+
+        return factorNames;
+    }
+
+    /**
+     * Generate CSV content from reports and factors
+     */
+    private generateCSVContent(
+        reports: any[],
+        factorsToInclude: string[],
+        availableFactors: any,
+    ): string {
+        this.logger.log(`Generating CSV for ${reports.length} reports with ${factorsToInclude?.length || 0} requested factors`);
+
+        // Step 1: Determine which factors to include
+        let columnsToInclude: string[];
+        if (factorsToInclude && factorsToInclude.length > 0) {
+            // User specified factors - use exactly what they requested
+            columnsToInclude = factorsToInclude;
+            this.logger.log(`Using user-specified factors: ${factorsToInclude.join(', ')}`);
+        } else {
+            // No factors specified - include all basic fields and flattened score details
+            columnsToInclude = [
+                '_id', 'repository', 'repositoryUrl', 'language', 'framework',
+                'createdAt', 'updatedAt', 'performance.analysisTime', 'performance.memoryUsage',
+
+                // Score values only (not the complex objects)
+                'scores.structural.score', 'scores.semantic.score', 'scores.systemic.score', 'scores.economic.score', 'scores.overall',
+
+                // Key structural details
+                'scores.structural.details.totalLinesOfCode',
+                'scores.structural.details.numFunctions',
+                'scores.structural.details.numStateVariables',
+                'scores.structural.details.avgCyclomaticComplexity',
+                'scores.structural.details.maxCyclomaticComplexity',
+
+                // Key systemic details
+                'scores.systemic.details.externalDependencies.externalContractCalls',
+                'scores.systemic.details.externalDependencies.uniqueFunctionCallsExternal',
+                'scores.systemic.details.standardInteractions.erc20Interactions',
+                'scores.systemic.details.oracleUsage',
+                'scores.systemic.details.accessControlPattern.type',
+
+                // Key economic details
+                'scores.economic.details.financialPrimitives.isAMM',
+                'scores.economic.details.financialPrimitives.isLendingProtocol',
+                'scores.economic.details.tokenomics.tokenTransfers',
+                'scores.economic.details.tokenomics.complexMathOperations',
+                'scores.economic.details.tokenomics.timeDependentLogic',
+                'scores.economic.details.financialPrimitives.defiPatterns'
+            ];
+            this.logger.log(`No factors specified, using default basic fields`);
+        }
+
+        // Step 2: Create CSV headers with friendly names
+        const headers = columnsToInclude.map(factor => {
+            // Try to find friendly name in metadata first
+            for (const category of Object.values(availableFactors)) {
+                const categoryData = category as any;
+                if (categoryData.factors && categoryData.factors[factor]) {
+                    return categoryData.factors[factor].name;
+                }
+            }
+            // Fallback to creating friendly name from factor path
+            return this.createFriendlyColumnName(factor);
+        });
+
+        // Step 3: Create CSV rows
+        const csvRows: string[] = [];
+        csvRows.push(headers.join(','));
+
+        // Step 4: Process each report
+        for (const report of reports) {
+            const reportObj = report.toObject ? report.toObject() : report;
+            const row: string[] = [];
+
+            for (const factor of columnsToInclude) {
+                const value = this.getNestedValue(reportObj, factor);
+                row.push(this.formatCSVValue(value));
+            }
+
+            csvRows.push(row.join(','));
+        }
+
+        this.logger.log(`Generated CSV with ${headers.length} columns and ${reports.length} data rows`);
+        return csvRows.join('\n');
+    }
+
+
+    /**
+     * Get nested value from object using dot notation
+     */
+    private getNestedValue(obj: any, path: string): any {
+        return path.split('.').reduce((current, key) => {
+            return current && current[key] !== undefined ? current[key] : '';
+        }, obj);
+    }
+
+    /**
+     * Flatten nested object into dot-notation keys with practical approach
+     */
+    private flattenObject(obj: any, prefix: string = ''): Record<string, any> {
+        const flattened: Record<string, any> = {};
+
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                const newKey = prefix ? `${prefix}.${key}` : key;
+                const value = obj[key];
+
+                if (value === null || value === undefined) {
+                    flattened[newKey] = '';
+                } else if (Array.isArray(value)) {
+                    // For arrays, use a more practical approach
+                    flattened[`${newKey}_count`] = value.length;
+
+                    if (value.length > 0) {
+                        // For string arrays, join them
+                        if (typeof value[0] === 'string') {
+                            flattened[`${newKey}_list`] = value.join('; ');
+                        }
+                        // For number arrays, provide statistics
+                        else if (typeof value[0] === 'number') {
+                            flattened[`${newKey}_sum`] = value.reduce((a, b) => a + b, 0);
+                            flattened[`${newKey}_avg`] = value.reduce((a, b) => a + b, 0) / value.length;
+                            flattened[`${newKey}_max`] = Math.max(...value);
+                            flattened[`${newKey}_min`] = Math.min(...value);
+                        }
+                        // For object arrays, extract key properties and aggregate
+                        else if (typeof value[0] === 'object') {
+                            const firstItem = value[0];
+
+                            // Common patterns for our data
+                            if (firstItem.type) {
+                                const types = value.map(item => item.type).filter(Boolean);
+                                flattened[`${newKey}_types`] = types.join('; ');
+                            }
+
+                            if (firstItem.confidence !== undefined) {
+                                const confidences = value.map(item => item.confidence).filter(v => v !== undefined);
+                                if (confidences.length > 0) {
+                                    flattened[`${newKey}_confidence_avg`] = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+                                    flattened[`${newKey}_confidence_max`] = Math.max(...confidences);
+                                }
+                            }
+
+                            if (firstItem.severity) {
+                                const severities = value.map(item => item.severity).filter(Boolean);
+                                flattened[`${newKey}_severities`] = severities.join('; ');
+                            }
+
+                            if (firstItem.name) {
+                                const names = value.map(item => item.name).filter(Boolean);
+                                flattened[`${newKey}_names`] = names.join('; ');
+                            }
+
+                            if (firstItem.program) {
+                                const programs = value.map(item => item.program).filter(Boolean);
+                                flattened[`${newKey}_programs`] = [...new Set(programs)].join('; ');
+                            }
+                        }
+                    }
+                } else if (typeof value === 'object') {
+                    // For objects, flatten only important nested structures
+                    if (this.isSimpleObject(value)) {
+                        // Simple objects with only primitive values - flatten directly
+                        const flatNested = this.flattenObject(value, newKey);
+                        Object.assign(flattened, flatNested);
+                    } else {
+                        // Complex objects - create summary columns
+                        const keys = Object.keys(value);
+                        flattened[`${newKey}_keys_count`] = keys.length;
+
+                        // Extract numeric values for aggregation
+                        const numericValues = keys.map(k => value[k]).filter(v => typeof v === 'number');
+                        if (numericValues.length > 0) {
+                            flattened[`${newKey}_numeric_sum`] = numericValues.reduce((a, b) => a + b, 0);
+                            flattened[`${newKey}_numeric_avg`] = numericValues.reduce((a, b) => a + b, 0) / numericValues.length;
+                        }
+                    }
+                } else {
+                    // Primitive values
+                    flattened[newKey] = value;
+                }
+            }
+        }
+
+        return flattened;
+    }
+
+    /**
+     * Check if object is simple (contains only primitive values)
+     */
+    private isSimpleObject(obj: any): boolean {
+        return Object.values(obj).every(value =>
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean' ||
+            value === null ||
+            value === undefined
+        );
+    }
+
+    /**
+     * Create friendly column name from dot notation key
+     */
+    private createFriendlyColumnName(key: string): string {
+        return key
+            // Replace underscores and dots with spaces
+            .replace(/[._]/g, ' ')
+            .split(' ')
+            .map(part => {
+                // Convert camelCase to Title Case
+                return part
+                    .replace(/([A-Z])/g, ' $1')
+                    .replace(/^./, str => str.toUpperCase())
+                    .trim();
+            })
+            .filter(part => part.length > 0)
+            .join(' ');
+    }
+
+    /**
+     * Format value for CSV output
+     */
+    private formatCSVValue(value: any): string {
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        // Handle arrays - join with semicolon
+        if (Array.isArray(value)) {
+            if (value.length === 0) {
+                return '';
+            }
+            // For arrays of objects, extract key properties
+            if (typeof value[0] === 'object') {
+                const simplified = value.map(item => {
+                    if (item.type) return item.type;
+                    if (item.name) return item.name;
+                    if (item.severity) return item.severity;
+                    return JSON.stringify(item);
+                });
+                return `"${simplified.join('; ')}"`;
+            }
+            // For primitive arrays
+            return `"${value.join('; ')}"`;
+        }
+
+        // Handle objects - convert to JSON
+        if (typeof value === 'object') {
+            return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
+        }
+
+        // Handle strings
+        if (typeof value === 'string') {
+            // Escape quotes and wrap in quotes if contains comma, newline, or quotes
+            if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+        }
+
+        // Handle booleans
+        if (typeof value === 'boolean') {
+            return value ? 'true' : 'false';
+        }
+
+        // Handle dates
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+
+        // Everything else as string
+        return String(value);
+    }
+
+    /**
      * Cleanup extracted directory after analysis
      */
     private async cleanupExtractedDirectory(extractedPath: string): Promise<void> {

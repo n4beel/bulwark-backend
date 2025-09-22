@@ -172,6 +172,89 @@ export class StaticAnalysisController {
         }
     }
 
+    @Post('export-csv')
+    async exportCsv(
+        @Body() dto: { reportIds?: string[]; factors?: string[] },
+    ): Promise<{ csv: string; filename: string }> {
+        try {
+            this.logger.log(`Exporting CSV for ${dto.reportIds?.length || 'all'} reports with ${dto.factors?.length || 'all'} factors`);
+
+            const csvData = await this.staticAnalysisService.exportReportsToCSV(
+                dto.reportIds,
+                dto.factors,
+            );
+
+            this.logger.log(`CSV export completed successfully`);
+            return csvData;
+
+        } catch (error) {
+            this.logger.error(`Failed to export CSV: ${error.message}`);
+
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            throw new HttpException(
+                `CSV export failed: ${error.message}`,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    @Post('available-factors')
+    async getAvailableFactors(): Promise<any> {
+        try {
+            this.logger.log('Retrieving available factors with metadata');
+
+            const factors = await this.staticAnalysisService.getAvailableFactors();
+
+            this.logger.log(`Retrieved ${Object.keys(factors).length} factor categories`);
+            return factors;
+
+        } catch (error) {
+            this.logger.error(`Failed to retrieve available factors: ${error.message}`);
+
+            throw new HttpException(
+                `Failed to retrieve available factors: ${error.message}`,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    @Post('debug-report')
+    async debugReport(@Body() dto: { reportId: string }): Promise<any> {
+        try {
+            this.logger.log(`Debugging report: ${dto.reportId}`);
+
+            const report = await this.staticAnalysisService.getReportByRepository(dto.reportId);
+            if (!report) {
+                throw new HttpException('Report not found', HttpStatus.NOT_FOUND);
+            }
+
+            // Return the raw report structure for debugging
+            return {
+                keys: Object.keys(report),
+                analysisFactorsKeys: report.analysisFactors ? Object.keys(report.analysisFactors) : null,
+                scoresKeys: report.scores ? Object.keys(report.scores) : null,
+                sampleData: {
+                    repository: report.repository,
+                    framework: report.framework,
+                    hasAnalysisFactors: !!report.analysisFactors,
+                    hasScores: !!report.scores,
+                    analysisFactorsType: typeof report.analysisFactors,
+                    scoresType: typeof report.scores,
+                }
+            };
+
+        } catch (error) {
+            this.logger.error(`Failed to debug report: ${error.message}`);
+            throw new HttpException(
+                `Debug failed: ${error.message}`,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
     @Post('health')
     healthCheck(): Promise<{ status: string; timestamp: Date }> {
         return Promise.resolve({
