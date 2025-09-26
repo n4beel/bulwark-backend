@@ -508,17 +508,19 @@ export class StaticAnalysisService {
         const numPrograms = (content.match(/#\[program\]/g) || []).length;
         const numFunctions = (content.match(/fn\s+\w+/g) || []).length;
         // Count state variables - struct fields that represent state
-        const structBlocks = content.match(/#\[account\]\s*pub\s+struct\s+\w+\s*\{[^}]*\}/g) || [];
+        const structBlocks = content.match(
+            /#\[account[^\]]*\]\s*pub\s+(struct|enum)\s+\w+\s*\{[^}]*\}/gs
+        ) || [];
         let numStateVariables = 0;
         for (const structBlock of structBlocks) {
             // Count fields in each struct (lines that start with 'pub ')
             const fields = structBlock.match(/pub\s+\w+:/g) || [];
             numStateVariables += fields.length;
         }
-        // Fallback: if no #[account] structs found, count all struct definitions
-        if (numStateVariables === 0) {
-            numStateVariables = (content.match(/pub\s+(struct|enum)/g) || []).length;
-        }
+        // Fallback: not needed anymore
+        // if (numStateVariables === 0) {
+        //     numStateVariables = (content.match(/pub\s+(struct|enum)/g) || []).length;
+        // }
 
         // Function visibility
         const publicFunctions = (content.match(/pub\s+fn/g) || []).length;
