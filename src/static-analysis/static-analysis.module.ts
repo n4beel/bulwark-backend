@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { StaticAnalysisController } from './static-analysis.controller';
 import { StaticAnalysisService } from './static-analysis.service';
+import { RustAnalyzerService } from './rust-analyzer.service';
 import { GitHubModule } from '../github/github.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-analysis.schema';
@@ -15,7 +16,7 @@ import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-ana
     ]),
   ],
   controllers: [StaticAnalysisController],
-  providers: [StaticAnalysisService],
-  exports: [StaticAnalysisService],
+  providers: [StaticAnalysisService, RustAnalyzerService],
+  exports: [StaticAnalysisService, RustAnalyzerService],
 })
 export class StaticAnalysisModule { }

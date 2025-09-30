@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { StaticAnalysisModule } from './static-analysis/static-analysis.module';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { TestModule } from './test/test.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UploadsModule } from './uploads/uploads.module';
     AuthModule,
     StaticAnalysisModule,
     UploadsModule,
+    TestModule,
   ],
   controllers: [AppController],
   providers: [AppService],

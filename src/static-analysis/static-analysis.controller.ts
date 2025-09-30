@@ -39,8 +39,8 @@ export class StaticAnalysisController {
                 );
             }
 
-            // Perform static analysis
-            const report = await this.staticAnalysisService.analyzeRustContract(
+            // Use Rust semantic analyzer by default for better accuracy
+            const report = await this.staticAnalysisService.analyzeRustContractWithRustEngine(
                 dto.owner,
                 dto.repo,
                 dto.accessToken,
@@ -76,6 +76,72 @@ export class StaticAnalysisController {
 
             throw new HttpException(
                 'Failed to perform static analysis on Rust contract',
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
+    }
+
+    @Post('analyze-rust-contract-semantic')
+    async analyzeRustContractSemantic(
+        @Body() dto: StaticAnalysisDto,
+    ): Promise<StaticAnalysisReport> {
+        try {
+            this.logger.log(
+                `Received request for semantic analysis of Rust contract for ${dto.owner}/${dto.repo}`,
+            );
+
+            // Validate input
+            if (!dto.owner || !dto.repo || !dto.accessToken) {
+                throw new HttpException(
+                    'Missing required fields: owner, repo, and accessToken are required',
+                    HttpStatus.BAD_REQUEST,
+                );
+            }
+
+            // Perform semantic analysis using Rust analyzer
+            const report = await this.staticAnalysisService.analyzeRustContractWithRustEngine(
+                dto.owner,
+                dto.repo,
+                dto.accessToken,
+                dto.selectedFiles,
+                dto.analysisOptions,
+            );
+
+            this.logger.log(
+                `Successfully completed semantic analysis for ${dto.owner}/${dto.repo}`,
+            );
+            return report;
+        } catch (error) {
+            this.logger.error(`Failed to perform semantic analysis: ${error.message}`);
+
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            // Handle specific errors
+            if (error.message.includes('Not Found')) {
+                throw new HttpException(
+                    'Repository not found or access denied',
+                    HttpStatus.NOT_FOUND,
+                );
+            }
+
+            if (error.message.includes('Bad credentials')) {
+                throw new HttpException(
+                    'Invalid GitHub access token',
+                    HttpStatus.UNAUTHORIZED,
+                );
+            }
+
+            if (error.message.includes('Rust analyzer not available')) {
+                throw new HttpException(
+                    'Rust semantic analyzer is not available. Please ensure the Rust analyzer binary is built and accessible.',
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                );
+            }
+
+            throw new HttpException(
+                'Failed to perform semantic analysis on Rust contract',
                 HttpStatus.INTERNAL_SERVER_ERROR,
             );
         }

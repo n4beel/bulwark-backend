@@ -64,6 +64,83 @@ export class GitHubService {
   }
 
   /**
+   * Get repository files recursively
+   */
+  async getRepositoryFiles(
+    owner: string,
+    repo: string,
+    accessToken: string,
+    path: string = '',
+  ): Promise<any[]> {
+    try {
+      const response = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          headers: {
+            Authorization: `token ${accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
+        },
+      );
+
+      const files: any[] = [];
+      const items = Array.isArray(response.data) ? response.data : [response.data];
+
+      for (const item of items) {
+        if (item.type === 'file') {
+          files.push({
+            name: item.name,
+            path: item.path,
+            size: item.size,
+            download_url: item.download_url,
+          });
+        } else if (item.type === 'dir') {
+          // Recursively get files from subdirectories
+          const subFiles = await this.getRepositoryFiles(owner, repo, accessToken, item.path);
+          files.push(...subFiles);
+        }
+      }
+
+      return files;
+    } catch (error) {
+      this.logger.error(`Failed to get repository files: ${error.message}`);
+      throw new Error(`Failed to get repository files: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get file content from GitHub
+   */
+  async getFileContent(
+    owner: string,
+    repo: string,
+    filePath: string,
+    accessToken: string,
+  ): Promise<string> {
+    try {
+      const response = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`,
+        {
+          headers: {
+            Authorization: `token ${accessToken}`,
+            Accept: 'application/vnd.github.v3+json',
+          },
+        },
+      );
+
+      if (response.data.content) {
+        // Content is base64 encoded
+        return Buffer.from(response.data.content, 'base64').toString('utf-8');
+      } else {
+        throw new Error('File content not found');
+      }
+    } catch (error) {
+      this.logger.error(`Failed to get file content: ${error.message}`);
+      throw new Error(`Failed to get file content: ${error.message}`);
+    }
+  }
+
+  /**
    * Clone repository to temporary directory
    */
   async cloneRepository(
