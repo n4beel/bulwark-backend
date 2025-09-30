@@ -50,15 +50,18 @@ export class TestController {
             this.logger.log(`✅ Step 3: Test data cleaned up`);
 
             // Return comprehensive test result
+            const directMode = rustResponse?.mode === 'direct';
             return {
                 success: true,
                 testId,
                 expectedData: request.testData,
                 actualData: rustResponse.actual_data,
                 matchResult: rustResponse.match_result,
-                message: rustResponse.match_result
-                    ? '🎉 SUCCESS: Shared volume communication is working correctly!'
-                    : '❌ FAILURE: Shared volume communication has issues',
+                message: directMode
+                    ? '✅ DIRECT MODE: Test passed without shared volume.'
+                    : (rustResponse.match_result
+                        ? '🎉 SUCCESS: Shared volume communication is working correctly!'
+                        : '❌ FAILURE: Shared volume communication has issues'),
                 rustServiceResponse: rustResponse,
             };
 

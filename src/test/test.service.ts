@@ -11,6 +11,17 @@ export interface RustTestResponse {
     actual_data?: string;
     match_result: boolean;
     message: string;
+    mode?: string; // present in direct mode
+}
+
+export interface RustDirectTestResponse {
+    success: boolean;
+    test_id: string;
+    expected_data: string;
+    actual_data?: string;
+    match_result: boolean;
+    message: string;
+    mode?: string;
 }
 
 @Injectable()
@@ -18,16 +29,24 @@ export class TestService {
     private readonly logger = new Logger(TestService.name);
     private readonly rustServiceUrl: string;
     private readonly sharedVolumePath: string;
+    private readonly directMode: boolean;
 
     constructor() {
         this.rustServiceUrl = process.env.RUST_ANALYZER_URL || 'http://localhost:8080';
         this.sharedVolumePath = process.env.SHARED_WORKSPACE_PATH || '/tmp/shared/workspaces';
+        this.directMode =
+            ['1', 'true', 'yes'].includes((process.env.DIRECT_MODE || '').toLowerCase()) ||
+            ['1', 'true', 'yes'].includes((process.env.NO_SHARED_VOLUME || '').toLowerCase());
     }
 
     /**
      * Write test data to the shared volume
      */
     async writeTestData(testId: string, testData: string): Promise<void> {
+        if (this.directMode) {
+            this.logger.debug('Direct mode enabled: skipping writeTestData filesystem operation');
+            return;
+        }
         try {
             // Create test directory in shared volume
             const testDir = path.join(this.sharedVolumePath, 'test');
@@ -50,12 +69,13 @@ export class TestService {
     async callRustTestEndpoint(testId: string, expectedData: string): Promise<RustTestResponse> {
         try {
             this.logger.debug(`Calling Rust test endpoint for testId: ${testId}`);
+            const endpoint = this.directMode ? '/test-direct' : '/test';
+            const payload = this.directMode
+                ? { test_id: testId, test_data: expectedData }
+                : { test_id: testId, expected_data: expectedData };
 
-            const response = await axios.post(`${this.rustServiceUrl}/test`, {
-                test_id: testId,
-                expected_data: expectedData,
-            }, {
-                timeout: 10000, // 10 second timeout
+            const response = await axios.post(`${this.rustServiceUrl}${endpoint}`, payload, {
+                timeout: 10000,
             });
 
             if (response.status === 200) {
@@ -84,6 +104,10 @@ export class TestService {
      * Clean up test data from shared volume
      */
     async cleanupTestData(testId: string): Promise<void> {
+        if (this.directMode) {
+            this.logger.debug('Direct mode enabled: skipping cleanupTestData filesystem operation');
+            return;
+        }
         try {
             const testFilePath = path.join(this.sharedVolumePath, 'test', `${testId}.txt`);
 
