@@ -30,9 +30,17 @@ export class TestService {
     private readonly rustServiceUrl: string;
     private readonly sharedVolumePath: string;
     private readonly directMode: boolean;
+    private lastRustError?: string;
 
     constructor() {
-        this.rustServiceUrl = process.env.RUST_ANALYZER_URL || 'http://localhost:8080';
+        const raw = process.env.RUST_ANALYZER_URL || 'http://localhost:8080';
+        // Auto-prefix scheme if user only sets host[:port] (common when using private service names)
+        if (!/^https?:\/\//i.test(raw)) {
+            this.rustServiceUrl = `http://${raw}`;
+            this.logger.log(`Normalized RUST_ANALYZER_URL (added scheme): ${this.rustServiceUrl}`);
+        } else {
+            this.rustServiceUrl = raw;
+        }
         this.sharedVolumePath = process.env.SHARED_WORKSPACE_PATH || '/tmp/shared/workspaces';
         this.directMode =
             ['1', 'true', 'yes'].includes((process.env.DIRECT_MODE || '').toLowerCase()) ||
@@ -73,18 +81,30 @@ export class TestService {
             const payload = this.directMode
                 ? { test_id: testId, test_data: expectedData }
                 : { test_id: testId, expected_data: expectedData };
-
-            const response = await axios.post(`${this.rustServiceUrl}${endpoint}`, payload, {
-                timeout: 10000,
-            });
-
-            if (response.status === 200) {
-                return response.data as RustTestResponse;
-            } else {
-                throw new Error(`Rust service returned status ${response.status}`);
+            const primaryUrl = `${this.rustServiceUrl}${endpoint}`;
+            let lastError: any;
+            const attemptUrls: string[] = [primaryUrl];
+            // If original env lacked scheme and user accidentally included trailing slash etc., we can add a trimmed variant
+            if (primaryUrl.includes('//') && primaryUrl.endsWith('//' + endpoint.replace(/^\//, ''))) {
+                attemptUrls.push(primaryUrl.replace(/\/+$/, ''));
             }
+            for (const url of attemptUrls) {
+                try {
+                    const response = await axios.post(url, payload, { timeout: 10000 });
+                    if (response.status === 200) {
+                        this.lastRustError = undefined;
+                        return response.data as RustTestResponse;
+                    }
+                    lastError = new Error(`Rust service returned status ${response.status}`);
+                } catch (err) {
+                    lastError = err;
+                    continue; // try next form
+                }
+            }
+            throw lastError || new Error('Unknown error contacting Rust service');
         } catch (error) {
             this.logger.error(`Failed to call Rust test endpoint:`, error);
+            this.lastRustError = (error as any)?.message || String(error);
 
             if (axios.isAxiosError(error)) {
                 if (error.response) {
@@ -164,5 +184,24 @@ export class TestService {
         }
 
         return info;
+    }
+
+    /**
+     * Diagnostics summary for debugging configuration in direct or shared mode.
+     */
+    async getDiagnostics(): Promise<any> {
+        const health = await this.isRustServiceAvailable();
+        return {
+            rustServiceUrl: this.rustServiceUrl,
+            directMode: this.directMode,
+            env: {
+                RUST_ANALYZER_URL: process.env.RUST_ANALYZER_URL,
+                DIRECT_MODE: process.env.DIRECT_MODE,
+                NO_SHARED_VOLUME: process.env.NO_SHARED_VOLUME,
+            },
+            rustHealth: health,
+            lastRustError: this.lastRustError,
+            timestamp: new Date().toISOString(),
+        };
     }
 }

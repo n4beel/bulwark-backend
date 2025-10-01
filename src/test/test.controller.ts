@@ -75,4 +75,13 @@ export class TestController {
             }, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    @Post('diagnostics')
+    async diagnostics() {
+        try {
+            return await this.testService.getDiagnostics();
+        } catch (e) {
+            this.logger.error('Diagnostics failed', e);
+            throw new HttpException({ error: (e as any).message }, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }
