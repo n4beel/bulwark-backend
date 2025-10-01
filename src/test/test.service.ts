@@ -33,14 +33,7 @@ export class TestService {
     private lastRustError?: string;
 
     constructor() {
-        const raw = process.env.RUST_ANALYZER_URL || 'http://localhost:8080';
-        // Auto-prefix scheme if user only sets host[:port] (common when using private service names)
-        if (!/^https?:\/\//i.test(raw)) {
-            this.rustServiceUrl = `http://${raw}`;
-            this.logger.log(`Normalized RUST_ANALYZER_URL (added scheme): ${this.rustServiceUrl}`);
-        } else {
-            this.rustServiceUrl = raw;
-        }
+        this.rustServiceUrl = process.env.RUST_ANALYZER_URL || 'http://localhost:8080';
         this.sharedVolumePath = process.env.SHARED_WORKSPACE_PATH || '/tmp/shared/workspaces';
         this.directMode =
             ['1', 'true', 'yes'].includes((process.env.DIRECT_MODE || '').toLowerCase()) ||
@@ -81,27 +74,17 @@ export class TestService {
             const payload = this.directMode
                 ? { test_id: testId, test_data: expectedData }
                 : { test_id: testId, expected_data: expectedData };
-            const primaryUrl = `${this.rustServiceUrl}${endpoint}`;
-            let lastError: any;
-            const attemptUrls: string[] = [primaryUrl];
-            // If original env lacked scheme and user accidentally included trailing slash etc., we can add a trimmed variant
-            if (primaryUrl.includes('//') && primaryUrl.endsWith('//' + endpoint.replace(/^\//, ''))) {
-                attemptUrls.push(primaryUrl.replace(/\/+$/, ''));
+
+            const response = await axios.post(`${this.rustServiceUrl}${endpoint}`, payload, {
+                timeout: 10000,
+            });
+
+            if (response.status === 200) {
+                this.lastRustError = undefined;
+                return response.data as RustTestResponse;
+            } else {
+                throw new Error(`Rust service returned status ${response.status}`);
             }
-            for (const url of attemptUrls) {
-                try {
-                    const response = await axios.post(url, payload, { timeout: 10000 });
-                    if (response.status === 200) {
-                        this.lastRustError = undefined;
-                        return response.data as RustTestResponse;
-                    }
-                    lastError = new Error(`Rust service returned status ${response.status}`);
-                } catch (err) {
-                    lastError = err;
-                    continue; // try next form
-                }
-            }
-            throw lastError || new Error('Unknown error contacting Rust service');
         } catch (error) {
             this.logger.error(`Failed to call Rust test endpoint:`, error);
             this.lastRustError = (error as any)?.message || String(error);
