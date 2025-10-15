@@ -348,6 +348,108 @@ complexObject_numeric_avg = 15
 - Invalid factors: Gracefully handles missing properties
 - Database errors: Proper error propagation
 
+## New Aggregated Factors (Excel-Friendly)
+
+The export functionality now includes intelligent aggregation of complex array data to make Excel analysis more manageable. Instead of thousands of repetitive rows, data is aggregated into meaningful metrics.
+
+### 📈 DeFi Pattern Aggregations
+
+For contracts with multiple DeFi patterns (e.g., 40 instances of AMM patterns), instead of listing each one, we provide:
+
+- `defiPatterns_total_count` - Total number of DeFi pattern instances
+- `defiPatterns_amm_count` - Number of AMM (Automated Market Maker) patterns
+- `defiPatterns_lending_count` - Number of lending protocol patterns  
+- `defiPatterns_vesting_count` - Number of vesting contract patterns
+- `defiPatterns_unique_count` - Number of unique pattern types
+- `defiPatterns_types` - Semicolon-separated list of all types
+
+**Example:**
+```
+defiPatterns_total_count: 40
+defiPatterns_amm_count: 25
+defiPatterns_lending_count: 1
+defiPatterns_vesting_count: 14
+defiPatterns_unique_count: 3
+```
+
+### ⚠️ Economic Risk Factor Aggregations
+
+Economic risks are aggregated by type for clearer analysis:
+
+- `economicRiskFactors_total_count` - Total number of economic risks
+- `economicRiskFactors_overflow_count` - Integer overflow risks
+- `economicRiskFactors_divisionByZero_count` - Division by zero risks
+- `economicRiskFactors_precisionLoss_count` - Precision loss risks
+- `economicRiskFactors_severities` - List of severity levels
+
+**Example:**
+```
+economicRiskFactors_total_count: 16
+economicRiskFactors_overflow_count: 9
+economicRiskFactors_divisionByZero_count: 4
+economicRiskFactors_precisionLoss_count: 3
+```
+
+### 🔧 Anchor Program Derives Aggregations
+
+Instead of listing hundreds of derive macro instances:
+
+- `programDerives_count` - Total number of derive macros used
+- `programDerives_unique_count` - Number of unique derive types
+- `programDerives_list` - Semicolon-separated list of unique derives
+
+**Example:**
+```
+programDerives_count: 217
+programDerives_unique_count: 18
+programDerives_list: PartialEq; Accounts; AnchorSerialize; AnchorDeserialize; Debug; Clone; Copy; ...
+```
+
+### 📚 Library and Integration Aggregations
+
+- `standardLibraryUsage_count` - Number of standard libraries
+- `standardLibraryUsage_list` - List of libraries (e.g., "anchor_lang; anchor_spl")
+- `knownProtocolInteractions_count` - Number of protocol integrations
+- `oracleUsage_count` - Number of oracle integrations
+- `crossProgramInvocation_count` - Number of CPI calls
+
+### ✅ Benefits of Aggregated Export
+
+**Before (Old Approach):**
+- 500+ columns with repetitive data
+- Excel becomes unmanageable
+- Difficult to analyze trends
+- Lost in the details
+
+**After (New Approach):**
+- ~60 meaningful columns
+- Excel-friendly format
+- Clear aggregated metrics
+- Analysis-ready data
+- Perfect for pivot tables and charts
+
+### 🎯 Default Export Includes
+
+When no specific factors are requested, the export includes:
+
+**Basic Info:** repository, repositoryUrl, language, framework
+
+**Scores:** structural, security, systemic, economic
+
+**Structural:** LOC, functions, programs, cyclomatic complexity
+
+**Security:** unsafe blocks, panic/unwrap usage, access control issues
+
+**Integration:** CPI usage, external calls, oracle usage, standard libraries
+
+**Economic:** token transfers, complex math, DeFi patterns (aggregated), economic risks (aggregated)
+
+**Anchor:** instruction handlers, account types, seeds, signer/owner checks, derives (aggregated)
+
+**Performance:** analysis time, memory usage
+
+**Financial Primitives:** isAMM, isLendingProtocol, isVestingContract
+
 ## Frontend Integration
 
 This analytics API is designed to support rich frontend experiences:

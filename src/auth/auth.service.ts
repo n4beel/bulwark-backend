@@ -22,16 +22,16 @@ export interface GitHubTokenResponse {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private configService: ConfigService) {}
+  constructor(private configService: ConfigService) { }
 
   /**
    * Exchange authorization code for access token
    */
   async exchangeCodeForToken(code: string): Promise<string> {
     try {
-      const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
+      const clientId = this.configService.get<string>('GIT_CLIENT_ID');
       const clientSecret = this.configService.get<string>(
-        'GITHUB_CLIENT_SECRET',
+        'GIT_CLIENT_SECRET',
       );
 
       if (!clientId || !clientSecret) {
@@ -96,8 +96,8 @@ export class AuthService {
    * Generate GitHub OAuth URL
    */
   getGitHubAuthUrl(): string {
-    const clientId = this.configService.get<string>('GITHUB_CLIENT_ID');
-    const redirectUri = this.configService.get<string>('GITHUB_CALLBACK_URL');
+    const clientId = this.configService.get<string>('GIT_CLIENT_ID');
+    const redirectUri = this.configService.get<string>('GIT_CALLBACK_URL');
 
     if (!clientId || !redirectUri) {
       throw new Error('GitHub OAuth credentials not configured');

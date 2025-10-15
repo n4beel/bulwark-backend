@@ -5,12 +5,14 @@ import { StaticAnalysisService } from './static-analysis.service';
 import { RustAnalyzerService } from './rust-analyzer.service';
 import { GitHubModule } from '../github/github.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { AiAnalysisModule } from '../ai-analysis/ai-analysis.module';
 import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-analysis.schema';
 
 @Module({
   imports: [
     GitHubModule,
     UploadsModule,
+    AiAnalysisModule,
     MongooseModule.forFeature([
       { name: StaticAnalysisReport.name, schema: StaticAnalysisSchema },
     ]),

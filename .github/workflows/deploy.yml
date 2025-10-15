@@ -1,0 +1,46 @@
+name: Deploy NestJS Server
+
+on:
+    push:
+        branches:
+            - main # Or your deployment branch
+
+jobs:
+    deploy:
+        runs-on: self-hosted
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: "20" # Specify your Node.js version
+
+            - name: Install Dependencies
+              run: npm install
+
+            - name: Build Project
+              run: npm run build
+
+            - name: Create .env file from secrets
+              run: |
+                  echo "NODE_ENV=production" > .env
+                  echo "PORT=3000" >> .env
+                  echo "RUST_ANALYZER_URL=http://localhost:8000" >> .env
+                  echo "AI_MAX_TOKENS=${{ secrets.AI_MAX_TOKENS }}" >> .env
+                  echo "AI_MODEL=${{ secrets.AI_MODEL }}" >> .env
+                  echo "AI_TEMPERATURE=${{ secrets.AI_TEMPERATURE }}" >> .env
+                  echo "FRONTEND_URL=${{ secrets.FRONTEND_URL }}" >> .env
+                  echo "GIT_CALLBACK_URL=${{ secrets.GIT_CALLBACK_URL }}" >> .env
+                  echo "GIT_CLIENT_ID=${{ secrets.GIT_CLIENT_ID }}" >> .env
+                  echo "GIT_CLIENT_SECRET=${{ secrets.GIT_CLIENT_SECRET }}" >> .env
+                  echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> .env
+                  echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+                  echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+                  echo "OPENAI_ASSISTANT_ID=${{ secrets.OPENAI_ASSISTANT_ID }}" >> .env
+                  echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
+
+            - name: Start or Reload Application with PM2
+              run: pm2 startOrReload ecosystem.config.js --env production

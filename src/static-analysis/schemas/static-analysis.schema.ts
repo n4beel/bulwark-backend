@@ -23,6 +23,18 @@ export class StaticAnalysisReport {
     @Prop({ type: Object, required: true })
     scores: any;
 
+    // Augmentation metadata: stores which fields were overridden and raw rust payload
+    @Prop({ type: Object, required: false })
+    augmentationMeta?: {
+        workspaceId?: string;
+        overridden?: string[];
+        apiVersion?: string;
+        timestamp?: string;
+    };
+
+    @Prop({ type: Object, required: false })
+    rustAugmentationRaw?: any;
+
     @Prop({ type: Object, required: true })
     performance: {
         analysisTime: number;

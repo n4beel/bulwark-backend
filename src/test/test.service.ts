@@ -75,7 +75,8 @@ export class TestService {
                 ? { test_id: testId, test_data: expectedData }
                 : { test_id: testId, expected_data: expectedData };
 
-            const response = await axios.post(`${this.rustServiceUrl}${endpoint}`, payload, {
+            console.log("🚀 ~ TestService ~ callRustTestEndpoint ~ this.rustServiceUrl:", this.rustServiceUrl)
+            const response = await axios.post(`http://${this.rustServiceUrl}${endpoint}`, payload, {
                 timeout: 10000,
             });
 
