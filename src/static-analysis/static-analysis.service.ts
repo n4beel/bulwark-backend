@@ -25,6 +25,7 @@ import * as path from 'path';
 import axios from 'axios';
 import { stageWorkspace, getSharedWorkspaceBase } from './shared-workspace.util';
 import { URL } from 'url';
+import { StaticAnalysisUtils } from './static-analysis.utils';
 
 function normalizeRustBase(urlRaw: string): { base: string; warning?: string } {
     try {
@@ -51,6 +52,7 @@ export class StaticAnalysisService {
         private readonly aiAnalysisService: AiAnalysisService,
         @InjectModel(StaticAnalysisModel.name)
         private readonly staticAnalysisModel: Model<StaticAnalysisModel>,
+        private readonly staticAnalysisUtils: StaticAnalysisUtils,
     ) { }
 
     /**
@@ -138,6 +140,7 @@ export class StaticAnalysisService {
                     typescript_analysis: {
                         engine: 'typescript-regex-analyzer',
                         version: '0.1.0',
+                        success: true,
                         total_lines_of_code: (typescriptReport as any).total_lines_of_code,
                         total_functions: (typescriptReport as any).total_functions,
                         complex_math_operations: (typescriptReport as any).complex_math_operations,
@@ -151,6 +154,8 @@ export class StaticAnalysisService {
                     rust_analysis: {
                         engine: 'rust-semantic-analyzer',
                         version: '0.1.0',
+                        success: true,
+                        error: null,
                         total_lines_of_code: (rustReport as any).total_lines_of_code,
                         total_functions: (rustReport as any).total_functions,
                         complex_math_operations: (rustReport as any).complex_math_operations,
@@ -458,6 +463,7 @@ export class StaticAnalysisService {
 
             // Step 2: Perform TypeScript analysis (legacy)
             this.logger.log('Performing TypeScript analysis...');
+
             const typescriptAnalysisFactors = await this.analyzeRustFiles(extractedPath, selectedFiles);
             const typescriptScores = this.calculateComplexityScores(typescriptAnalysisFactors);
 
@@ -527,18 +533,18 @@ export class StaticAnalysisService {
             let aiAnalysisSuccess = false;
             let aiAnalysisError: string | null = null;
 
-            try {
-                aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
-                    extractedPath,
-                    rustAnalysisFactors,
-                    selectedFiles
-                );
-                aiAnalysisSuccess = true;
-                this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
-            } catch (aiErr) {
-                aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
-                this.logger.warn(aiAnalysisError);
-            }
+            // try {
+            //     aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
+            //         extractedPath,
+            //         rustAnalysisFactors,
+            //         selectedFiles
+            //     );
+            //     aiAnalysisSuccess = true;
+            //     this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
+            // } catch (aiErr) {
+            //     aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
+            //     this.logger.warn(aiAnalysisError);
+            // }
 
             // Step 5: Build triple analysis report
             const endTime = Date.now();
@@ -559,6 +565,23 @@ export class StaticAnalysisService {
                 analysis_engine: 'dual-analyzer',
                 analyzer_version: '0.2.0',
                 analysis_date: new Date().toISOString(),
+
+                // Analysis Scores
+                static_analysis_scores: {
+                    structural: {
+                        loc_factor: this.staticAnalysisUtils.calculateTotalLinesOfCodeFactor(rustAnalysisFactors?.totalLinesOfCode || 0),
+                        total_functions_factor: this.staticAnalysisUtils.calculateTotalFunctionsFactor(rustAnalysisFactors?.numFunctions || 0),
+                        code_complexity_factor: this.staticAnalysisUtils.calculateCodeComplexityFactor(
+                            rustAnalysisFactors?.complexity?.maxCyclomaticComplexity || 0,
+                            rustAnalysisFactors?.complexity?.avgCyclomaticComplexity || 0
+                        ),
+                        modularity_factor: rustAnalysisFactors?.modularity?.anchorModularityScore || 0,
+                        dependency_security_factor: rustAnalysisFactors?.dependencies?.dependencyFactor || 0,
+                    },
+                    security: {},
+                    systemic: {},
+                    economic: {},
+                },
 
                 // TypeScript analysis results
                 typescript_analysis: {

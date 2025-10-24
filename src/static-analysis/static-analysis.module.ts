@@ -7,6 +7,7 @@ import { GitHubModule } from '../github/github.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { AiAnalysisModule } from '../ai-analysis/ai-analysis.module';
 import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-analysis.schema';
+import { StaticAnalysisUtils } from './static-analysis.utils';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-ana
     ]),
   ],
   controllers: [StaticAnalysisController],
-  providers: [StaticAnalysisService, RustAnalyzerService],
+  providers: [StaticAnalysisService, RustAnalyzerService, StaticAnalysisUtils],
   exports: [StaticAnalysisService, RustAnalyzerService],
 })
 export class StaticAnalysisModule { }

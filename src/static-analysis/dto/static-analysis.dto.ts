@@ -185,10 +185,77 @@ export interface StaticAnalysisReport {
   framework: string;
   analysisFactors: RustAnalysisFactors;
   scores: ComplexityScores;
+
+  // Static analysis scores - flexible object for various metrics
+  static_analysis_scores?: {
+    total_lines_of_code?: number;
+    total_functions?: number;
+    code_complexity_factor?: number;
+    [key: string]: any; // Allow for additional flexible properties
+  };
+
+  // Analysis metadata
+  analysis_engine?: string;
+  analyzer_version?: string;
+  analysis_date?: string;
+
+  // TypeScript analysis results
+  typescript_analysis?: {
+    engine: string;
+    version: string;
+    success: boolean;
+    analysisFactors: any;
+    scores: any;
+    total_lines_of_code: number;
+    total_functions: number;
+    complex_math_operations: number;
+  };
+
+  // Rust analysis results
+  rust_analysis?: {
+    engine: string;
+    version: string;
+    success: boolean;
+    error: string | null;
+    analysisFactors: any;
+    total_lines_of_code: number;
+    total_functions: number;
+    complex_math_operations: number;
+  };
+
+  // AI analysis results
+  ai_analysis?: {
+    engine: string;
+    version: string;
+    success: boolean;
+    error: string | null;
+    analysisFactors: any;
+    documentation_clarity: number;
+    testing_coverage: number;
+    financial_logic_complexity: number;
+    attack_vector_risk: number;
+    value_at_risk: number;
+    game_theory_complexity: number;
+  };
+
+  // Analysis comparison
+  analysis_comparison?: {
+    lines_of_code_diff: number;
+    functions_diff: number;
+    math_operations_diff: number;
+    accuracy_notes: string[];
+  } | {
+    error: string;
+    fallback_used: string;
+  };
+
   performance: {
     analysisTime: number;
     memoryUsage: number;
+    typescript_analysis_included?: boolean;
+    rust_analysis_success?: boolean;
   };
+
   createdAt: Date;
   updatedAt: Date;
   __v?: number;
