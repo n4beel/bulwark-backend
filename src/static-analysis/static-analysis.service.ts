@@ -425,6 +425,21 @@ export class StaticAnalysisService {
     }
 
     /**
+     * Get analysis report by ID
+     */
+    async getReportById(id: string): Promise<any | null> {
+        try {
+            const report = await this.staticAnalysisModel.findById(id).exec();
+            if (!report) return null;
+            return report.toObject();
+        }
+        catch (error) {
+            this.logger.error(`Failed to retrieve report for ${id}: ${error.message}`);
+            throw new Error(`Failed to retrieve report for ${id}: ${error.message}`);
+        }
+    }
+
+    /**
      * Get analysis report by repository name
      */
     async getReportByRepository(repository: string): Promise<StaticAnalysisReportDocument | null> {
@@ -458,6 +473,7 @@ export class StaticAnalysisService {
         this.logger.log(`Starting static analysis of uploaded contract: ${projectName}`);
 
         try {
+            let savedReport: any = null;
             // Step 1: Detect framework
             const framework = this.detectFramework(extractedPath);
 
@@ -578,7 +594,10 @@ export class StaticAnalysisService {
                         modularity_factor: rustAnalysisFactors?.modularity?.anchorModularityScore || 0,
                         dependency_security_factor: rustAnalysisFactors?.dependencies?.dependencyFactor || 0,
                     },
-                    security: {},
+                    security: {
+                        access_control_factor: rustAnalysisFactors?.accessControl?.accessControlFactor || 0,
+                        pda_complexity_factor: rustAnalysisFactors?.pdaSeeds?.pdaComplexityFactor || 0,
+                    },
                     systemic: {},
                     economic: {},
                 },
@@ -650,7 +669,7 @@ export class StaticAnalysisService {
 
             // Step 5: Save report to MongoDB
             try {
-                const savedReport = new this.staticAnalysisModel(report);
+                savedReport = new this.staticAnalysisModel(report);
                 await savedReport.save();
                 this.logger.log(`Report saved to database for uploaded contract: ${projectName}`);
             } catch (dbError) {
@@ -679,7 +698,7 @@ export class StaticAnalysisService {
                 this.logger.warn(`Failed to cleanup extracted directory and session: ${cleanupError.message}`);
             }
 
-            return report;
+            return savedReport;
 
         } catch (error) {
             this.logger.error(`Static analysis failed for uploaded contract: ${error.message}`);
