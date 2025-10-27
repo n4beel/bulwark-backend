@@ -17,8 +17,8 @@ export class StaticAnalysisReport {
     @Prop({ required: true })
     framework: string;
 
-    @Prop({ type: Object, required: true })
-    analysisFactors: any;
+    @Prop({ type: Object })
+    analysisFactors?: any;
 
     @Prop({ type: Object, required: true })
     scores: any;

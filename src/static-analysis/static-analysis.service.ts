@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { GitHubService } from '../github/github.service';
@@ -430,7 +430,9 @@ export class StaticAnalysisService {
     async getReportById(id: string): Promise<any | null> {
         try {
             const report = await this.staticAnalysisModel.findById(id).exec();
-            if (!report) return null;
+            if (!report) {
+                throw new NotFoundException("Report does not exist");
+            }
             return report.toObject();
         }
         catch (error) {
