@@ -478,10 +478,10 @@ export class StaticAnalysisService {
             const framework = this.detectFramework(extractedPath);
 
             // Step 2: Perform TypeScript analysis (legacy)
-            this.logger.log('Performing TypeScript analysis...');
+            // this.logger.log('Performing TypeScript analysis...');
 
-            const typescriptAnalysisFactors = await this.analyzeRustFiles(extractedPath, selectedFiles);
-            const typescriptScores = this.calculateComplexityScores(typescriptAnalysisFactors);
+            // const typescriptAnalysisFactors = await this.analyzeRustFiles(extractedPath, selectedFiles);
+            // const typescriptScores = this.calculateComplexityScores(typescriptAnalysisFactors);
 
             // Step 3: Perform Rust analysis
             this.logger.log('Performing Rust analysis...');
@@ -566,14 +566,15 @@ export class StaticAnalysisService {
             const endTime = Date.now();
             const memoryEnd = process.memoryUsage().heapUsed;
 
+            console.log("====================================================")
+            console.log(rustAnalysisFactors);
+            console.log("====================================================")
+
             const staticAnalysisScores = {
                 structural: {
-                    loc_factor: this.staticAnalysisUtils.calculateTotalLinesOfCodeFactor(rustAnalysisFactors?.totalLinesOfCode || 0),
-                    total_functions_factor: this.staticAnalysisUtils.calculateTotalFunctionsFactor(rustAnalysisFactors?.numFunctions || 0),
-                    code_complexity_factor: this.staticAnalysisUtils.calculateCodeComplexityFactor(
-                        rustAnalysisFactors?.complexity?.maxCyclomaticComplexity || 0,
-                        rustAnalysisFactors?.complexity?.avgCyclomaticComplexity || 0
-                    ),
+                    loc_factor: rustAnalysisFactors?.tscMetrics?.locFactor || 0,
+                    total_functions_factor: rustAnalysisFactors?.functionCountMetrics?.functionFactor || 0,
+                    code_complexity_factor: rustAnalysisFactors?.complexity?.complexityFactor || 0,
                     modularity_factor: rustAnalysisFactors?.modularity?.anchorModularityScore || 0,
                     dependency_security_factor: rustAnalysisFactors?.dependencies?.dependencyFactor || 0,
                 },
@@ -654,6 +655,8 @@ export class StaticAnalysisService {
 
                 createdAt: new Date(),
                 updatedAt: new Date(),
+
+                result: this.staticAnalysisUtils.calculateResult()
             } as StaticAnalysisReport;
 
             // Step 5: Save report to MongoDB
@@ -666,11 +669,11 @@ export class StaticAnalysisService {
             }
 
             this.logger.log(`Triple analysis completed for uploaded contract: ${projectName}`);
-            if (rustAnalysisSuccess) {
-                this.logger.log(`TypeScript vs Rust comparison: Math ops ${(typescriptAnalysisFactors as any).complexMathOperations || 0} vs ${(rustAnalysisFactors as any).complexMathOperations || 0} (diff: ${((rustAnalysisFactors as any).complexMathOperations || 0) - ((typescriptAnalysisFactors as any).complexMathOperations || 0)})`);
-            } else {
-                this.logger.log(`Rust analysis failed: ${rustAnalysisError}. Using TypeScript analysis only.`);
-            }
+            // if (rustAnalysisSuccess) {
+            //     this.logger.log(`TypeScript vs Rust comparison: Math ops ${(typescriptAnalysisFactors as any).complexMathOperations || 0} vs ${(rustAnalysisFactors as any).complexMathOperations || 0} (diff: ${((rustAnalysisFactors as any).complexMathOperations || 0) - ((typescriptAnalysisFactors as any).complexMathOperations || 0)})`);
+            // } else {
+            //     this.logger.log(`Rust analysis failed: ${rustAnalysisError}. Using TypeScript analysis only.`);
+            // }
 
             if (aiAnalysisSuccess) {
                 this.logger.log(`AI analysis completed: Documentation ${(aiAnalysisFactors as any).documentationClarity?.overallClarityScore || 0}, Testing ${(aiAnalysisFactors as any).testingCoverage?.overallTestingScore || 0}, Financial Logic ${(aiAnalysisFactors as any).financialLogicIntricacy?.overallFinancialComplexityScore || 0}`);
