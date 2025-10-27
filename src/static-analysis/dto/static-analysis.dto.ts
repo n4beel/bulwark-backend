@@ -183,16 +183,6 @@ export interface StaticAnalysisReport {
   repositoryUrl: string;
   language: string;
   framework: string;
-  analysisFactors: RustAnalysisFactors;
-  scores: ComplexityScores;
-
-  // Static analysis scores - flexible object for various metrics
-  static_analysis_scores?: {
-    total_lines_of_code?: number;
-    total_functions?: number;
-    code_complexity_factor?: number;
-    [key: string]: any; // Allow for additional flexible properties
-  };
 
   // Analysis metadata
   analysis_engine?: string;
@@ -220,7 +210,6 @@ export interface StaticAnalysisReport {
     analysisFactors: any;
     total_lines_of_code: number;
     total_functions: number;
-    complex_math_operations: number;
   };
 
   // AI analysis results

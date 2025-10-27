@@ -10,7 +10,7 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:3000',
       'https://my-security-ivory.vercel.app',
-      'https://my-security-ivory.vercel.app/',
+      'https://bulwark.blockapex.io',
       process.env.FRONTEND_URL,
     ].filter(Boolean),
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

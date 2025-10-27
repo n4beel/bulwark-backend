@@ -303,39 +303,39 @@ export class StaticAnalysisController {
         }
     }
 
-    @Post('debug-report')
-    async debugReport(@Body() dto: { reportId: string }): Promise<any> {
-        try {
-            this.logger.log(`Debugging report: ${dto.reportId}`);
+    // @Post('debug-report')
+    // async debugReport(@Body() dto: { reportId: string }): Promise<any> {
+    //     try {
+    //         this.logger.log(`Debugging report: ${dto.reportId}`);
 
-            const report = await this.staticAnalysisService.getReportByRepository(dto.reportId);
-            if (!report) {
-                throw new HttpException('Report not found', HttpStatus.NOT_FOUND);
-            }
+    //         const report = await this.staticAnalysisService.getReportByRepository(dto.reportId);
+    //         if (!report) {
+    //             throw new HttpException('Report not found', HttpStatus.NOT_FOUND);
+    //         }
 
-            // Return the raw report structure for debugging
-            return {
-                keys: Object.keys(report),
-                analysisFactorsKeys: report.analysisFactors ? Object.keys(report.analysisFactors) : null,
-                scoresKeys: report.scores ? Object.keys(report.scores) : null,
-                sampleData: {
-                    repository: report.repository,
-                    framework: report.framework,
-                    hasAnalysisFactors: !!report.analysisFactors,
-                    hasScores: !!report.scores,
-                    analysisFactorsType: typeof report.analysisFactors,
-                    scoresType: typeof report.scores,
-                }
-            };
+    //         // Return the raw report structure for debugging
+    //         return {
+    //             keys: Object.keys(report),
+    //             analysisFactorsKeys: report.analysisFactors ? Object.keys(report.analysisFactors) : null,
+    //             scoresKeys: report.scores ? Object.keys(report.scores) : null,
+    //             sampleData: {
+    //                 repository: report.repository,
+    //                 framework: report.framework,
+    //                 hasAnalysisFactors: !!report.analysisFactors,
+    //                 hasScores: !!report.scores,
+    //                 analysisFactorsType: typeof report.analysisFactors,
+    //                 scoresType: typeof report.scores,
+    //             }
+    //         };
 
-        } catch (error) {
-            this.logger.error(`Failed to debug report: ${error.message}`);
-            throw new HttpException(
-                `Debug failed: ${error.message}`,
-                HttpStatus.INTERNAL_SERVER_ERROR,
-            );
-        }
-    }
+    //     } catch (error) {
+    //         this.logger.error(`Failed to debug report: ${error.message}`);
+    //         throw new HttpException(
+    //             `Debug failed: ${error.message}`,
+    //             HttpStatus.INTERNAL_SERVER_ERROR,
+    //         );
+    //     }
+    // }
 
     @Post('health')
     healthCheck(): Promise<{ status: string; timestamp: Date }> {

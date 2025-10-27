@@ -145,7 +145,7 @@ export class StaticAnalysisService {
                         total_functions: (typescriptReport as any).total_functions,
                         complex_math_operations: (typescriptReport as any).complex_math_operations,
                         cyclomatic_complexity: (typescriptReport as any).cyclomatic_complexity,
-                        analysisFactors: typescriptReport.analysisFactors,
+                        analysisFactors: typescriptReport,
                         complexityScores: (typescriptReport as any).complexityScores,
                         scores: (typescriptReport as any).scores,
                     },
@@ -162,7 +162,7 @@ export class StaticAnalysisService {
                         cyclomatic_complexity: (rustReport as any).cyclomatic_complexity,
                         safety_ratio: (rustReport as any).safety_ratio,
                         semantic_patterns: (rustReport as any).semantic_patterns,
-                        analysisFactors: rustReport.analysisFactors,
+                        analysisFactors: rustReport,
                         complexityScores: (rustReport as any).complexityScores,
                         scores: (rustReport as any).scores,
                         rust_analysis_factors: (rustReport as any).rust_analysis_factors,
@@ -362,8 +362,8 @@ export class StaticAnalysisService {
                 repositoryUrl: repoInfo.html_url,
                 language: 'rust',
                 framework,
-                analysisFactors,
-                scores,
+                // analysisFactors,
+                // scores,
                 performance: {
                     analysisTime: endTime - startTime,
                     memoryUsage: endMemory - startMemory,
@@ -566,6 +566,40 @@ export class StaticAnalysisService {
             const endTime = Date.now();
             const memoryEnd = process.memoryUsage().heapUsed;
 
+            const staticAnalysisScores = {
+                structural: {
+                    loc_factor: this.staticAnalysisUtils.calculateTotalLinesOfCodeFactor(rustAnalysisFactors?.totalLinesOfCode || 0),
+                    total_functions_factor: this.staticAnalysisUtils.calculateTotalFunctionsFactor(rustAnalysisFactors?.numFunctions || 0),
+                    code_complexity_factor: this.staticAnalysisUtils.calculateCodeComplexityFactor(
+                        rustAnalysisFactors?.complexity?.maxCyclomaticComplexity || 0,
+                        rustAnalysisFactors?.complexity?.avgCyclomaticComplexity || 0
+                    ),
+                    modularity_factor: rustAnalysisFactors?.modularity?.anchorModularityScore || 0,
+                    dependency_security_factor: rustAnalysisFactors?.dependencies?.dependencyFactor || 0,
+                },
+                security: {
+                    access_control_factor: rustAnalysisFactors?.accessControl?.accessControlFactor || 0,
+                    pda_complexity_factor: rustAnalysisFactors?.pdaSeeds?.pdaComplexityFactor || 0,
+                    cpi_factor: rustAnalysisFactors?.cpiCalls?.cpiFactor || 0,
+                    input_constraints_factor: rustAnalysisFactors?.inputConstraints?.inputConstraintFactor || 0,
+                    arithmatic_factor: rustAnalysisFactors?.arithmeticOperations?.arithmeticFactor || 0,
+                    priviliged_roles_factor: rustAnalysisFactors?.privilegedRoles?.acFactor || 0,
+                    unsafe_lowlevel_factor: rustAnalysisFactors?.unsafeLowLevel?.unsafeFactor || 0,
+                    error_handling_factor: rustAnalysisFactors?.errorHandling?.errorHandlingFactor || 0,
+                },
+                systemic: {
+                    upgradeability_factor: rustAnalysisFactors?.upgradeability?.upgradeabilityFactor || 0,
+                    external_integration_factor: rustAnalysisFactors?.dependencies?.externalIntegrationFactor || 0,
+                    composability_factor: rustAnalysisFactors?.composability?.composabilityFactor || 0,
+                    dos_resource_limits_factor: rustAnalysisFactors?.dosResourceLimits?.resourceFactor || 0,
+                    operational_security_factor: rustAnalysisFactors?.operationalSecurity?.opsecFactor || 0,
+                },
+                economic: {
+                    asset_types_factor: rustAnalysisFactors?.assetTypes?.assetTypesFactor || 0,
+                    invariants_risk_factor: rustAnalysisFactors?.invariantsAndRiskParams?.constraintDensityFactor || 0,
+                },
+            }
+
             // Create triple analysis report
             const report: StaticAnalysisReport = {
                 repository: projectName,
@@ -574,8 +608,9 @@ export class StaticAnalysisService {
                 framework,
 
                 // Use TypeScript analysis as base for backward compatibility
-                analysisFactors: typescriptAnalysisFactors,
-                scores: typescriptScores,
+                // analysisFactors: typescriptAnalysisFactors,
+                // scores: typescriptScores,
+                scores: this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores),
 
                 // Analysis metadata
                 analysis_engine: 'dual-analyzer',
@@ -583,36 +618,7 @@ export class StaticAnalysisService {
                 analysis_date: new Date().toISOString(),
 
                 // Analysis Scores
-                static_analysis_scores: {
-                    structural: {
-                        loc_factor: this.staticAnalysisUtils.calculateTotalLinesOfCodeFactor(rustAnalysisFactors?.totalLinesOfCode || 0),
-                        total_functions_factor: this.staticAnalysisUtils.calculateTotalFunctionsFactor(rustAnalysisFactors?.numFunctions || 0),
-                        code_complexity_factor: this.staticAnalysisUtils.calculateCodeComplexityFactor(
-                            rustAnalysisFactors?.complexity?.maxCyclomaticComplexity || 0,
-                            rustAnalysisFactors?.complexity?.avgCyclomaticComplexity || 0
-                        ),
-                        modularity_factor: rustAnalysisFactors?.modularity?.anchorModularityScore || 0,
-                        dependency_security_factor: rustAnalysisFactors?.dependencies?.dependencyFactor || 0,
-                    },
-                    security: {
-                        access_control_factor: rustAnalysisFactors?.accessControl?.accessControlFactor || 0,
-                        pda_complexity_factor: rustAnalysisFactors?.pdaSeeds?.pdaComplexityFactor || 0,
-                    },
-                    systemic: {},
-                    economic: {},
-                },
-
-                // TypeScript analysis results
-                typescript_analysis: {
-                    engine: 'typescript-regex-analyzer',
-                    version: '0.1.0',
-                    success: true,
-                    analysisFactors: typescriptAnalysisFactors,
-                    scores: typescriptScores,
-                    total_lines_of_code: (typescriptAnalysisFactors as any).totalLinesOfCode || 0,
-                    total_functions: (typescriptAnalysisFactors as any).numFunctions || 0,
-                    complex_math_operations: (typescriptAnalysisFactors as any).complexMathOperations || 0,
-                },
+                static_analysis_scores: staticAnalysisScores,
 
                 // Rust analysis results
                 rust_analysis: {
@@ -623,7 +629,6 @@ export class StaticAnalysisService {
                     analysisFactors: rustAnalysisFactors,
                     total_lines_of_code: (rustAnalysisFactors as any).totalLinesOfCode || 0,
                     total_functions: (rustAnalysisFactors as any).numFunctions || 0,
-                    complex_math_operations: (rustAnalysisFactors as any).complexMathOperations || 0,
                 },
 
                 ai_analysis: {
@@ -638,22 +643,6 @@ export class StaticAnalysisService {
                     attack_vector_risk: (aiAnalysisFactors as any).profitAttackVectors?.overallAttackVectorScore || 0,
                     value_at_risk: (aiAnalysisFactors as any).valueAtRisk?.overallValueAtRiskScore || 0,
                     game_theory_complexity: (aiAnalysisFactors as any).gameTheoryIncentives?.overallGameTheoryScore || 0,
-                },
-
-                // Comparison metrics (only if Rust analysis succeeded)
-                analysis_comparison: rustAnalysisSuccess ? {
-                    lines_of_code_diff: ((rustAnalysisFactors as any).totalLinesOfCode || 0) - ((typescriptAnalysisFactors as any).totalLinesOfCode || 0),
-                    functions_diff: ((rustAnalysisFactors as any).numFunctions || 0) - ((typescriptAnalysisFactors as any).numFunctions || 0),
-                    math_operations_diff: ((rustAnalysisFactors as any).complexMathOperations || 0) - ((typescriptAnalysisFactors as any).complexMathOperations || 0),
-                    accuracy_notes: [
-                        'TypeScript analysis uses regex-based pattern matching',
-                        'Rust analysis uses AST-based semantic parsing',
-                        'Rust analysis provides more accurate complex math operation counts',
-                        'Differences indicate improved accuracy with Rust analyzer'
-                    ]
-                } : {
-                    error: 'Rust analysis failed - comparison not available',
-                    fallback_used: 'TypeScript analysis only'
                 },
 
                 performance: {
