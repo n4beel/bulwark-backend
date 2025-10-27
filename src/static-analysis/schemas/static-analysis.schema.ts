@@ -23,6 +23,9 @@ export class StaticAnalysisReport {
     @Prop({ type: Object, required: true })
     scores: any;
 
+    @Prop({ type: Object, required: true })
+    result: any;
+
     // Static analysis scores - flexible object for various metrics
     @Prop({ type: Object, required: false })
     static_analysis_scores?: {
