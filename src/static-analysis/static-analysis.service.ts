@@ -431,13 +431,13 @@ export class StaticAnalysisService {
         try {
             const report = await this.staticAnalysisModel.findById(id).exec();
             if (!report) {
-                throw new NotFoundException("Report does not exist");
+                throw new NotFoundException("Report does not exist")
             }
             return report.toObject();
         }
         catch (error) {
             this.logger.error(`Failed to retrieve report for ${id}: ${error.message}`);
-            throw new Error(`Failed to retrieve report for ${id}: ${error.message}`);
+            throw new NotFoundException(`Failed to retrieve report for ${id}: ${error.message}`);
         }
     }
 

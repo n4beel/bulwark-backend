@@ -165,16 +165,9 @@ export class StaticAnalysisController {
 
     @Get('reports/:id')
     async getReportById(@Param('id') id: string): Promise<StaticAnalysisReportDocument | null> {
-        try {
-            this.logger.log(`Retrieving report for ${id}`);
-            return await this.staticAnalysisService.getReportById(id);
-        } catch (error) {
-            this.logger.error(`Failed to retrieve report: ${error.message}`);
-            throw new HttpException(
-                'Failed to retrieve analysis report',
-                HttpStatus.INTERNAL_SERVER_ERROR,
-            );
-        }
+        this.logger.log(`Retrieving report for ${id}`);
+        return await this.staticAnalysisService.getReportById(id);
+
     }
 
     @Post('reports/:repository')
