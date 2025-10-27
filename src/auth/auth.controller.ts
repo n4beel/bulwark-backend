@@ -11,15 +11,15 @@ import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService) { }
 
   /**
    * Get GitHub OAuth URL
    */
   @Get('github/url')
-  getGitHubAuthUrl() {
+  getGitHubAuthUrl(@Query('from') from: string) {
     try {
-      const authUrl = this.authService.getGitHubAuthUrl();
+      const authUrl = this.authService.getGitHubAuthUrl(from);
       return { authUrl };
     } catch (error) {
       throw new HttpException(
@@ -35,26 +35,22 @@ export class AuthController {
   @Get('github/callback')
   async handleGitHubCallback(
     @Query('code') code: string,
-    @Query('state') state: string,
+    @Query('state') state: string, // <-- This will be '/dashboard'
     @Res() res: Response,
   ) {
     try {
-      if (!code) {
-        throw new HttpException(
-          'Authorization code is required',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      // Exchange code for access token
+      // ... (your code to exchange token and get user) ...
       const accessToken = await this.authService.exchangeCodeForToken(code);
-
-      // Get user information
       const user = await this.authService.getGitHubUser(accessToken);
 
-      // Redirect to frontend with token and user info
+      // --- Use the 'state' for the redirect ---
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+
+      // Use the 'state' as the return path.
+      const returnPath = state || '/';
+
+      // This will now be: https://bulwark.blockapex.io/dashboard?token=...
+      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
 
       res.redirect(redirectUrl);
     } catch (error) {

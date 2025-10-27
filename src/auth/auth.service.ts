@@ -93,9 +93,9 @@ export class AuthService {
   }
 
   /**
-   * Generate GitHub OAuth URL
-   */
-  getGitHubAuthUrl(): string {
+     * Generate GitHub OAuth URL
+     */
+  getGitHubAuthUrl(fromPath?: string): string { // <-- 1. Accept the path
     const clientId = this.configService.get<string>('GIT_CLIENT_ID');
     const redirectUri = this.configService.get<string>('GIT_CALLBACK_URL');
 
@@ -103,11 +103,15 @@ export class AuthService {
       throw new Error('GitHub OAuth credentials not configured');
     }
 
+    // 2. Use the 'fromPath' as the state.
+    //    Default to '/' if no path is provided.
+    const state = fromPath || '/';
+
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       scope: 'repo read:user user:email',
-      state: this.generateState(),
+      state: state, // <-- 3. Use the path here
     });
 
     return `https://github.com/login/oauth/authorize?${params.toString()}`;
