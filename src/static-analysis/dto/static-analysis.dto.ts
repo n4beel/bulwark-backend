@@ -224,7 +224,6 @@ export interface StaticAnalysisReport {
     financial_logic_complexity: number;
     attack_vector_risk: number;
     value_at_risk: number;
-    game_theory_complexity: number;
   };
 
   // Analysis comparison

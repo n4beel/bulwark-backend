@@ -551,26 +551,26 @@ export class StaticAnalysisService {
             let aiAnalysisSuccess = false;
             let aiAnalysisError: string | null = null;
 
-            // try {
-            //     aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
-            //         extractedPath,
-            //         rustAnalysisFactors,
-            //         selectedFiles
-            //     );
-            //     aiAnalysisSuccess = true;
-            //     this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
-            // } catch (aiErr) {
-            //     aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
-            //     this.logger.warn(aiAnalysisError);
-            // }
+            try {
+                aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
+                    extractedPath,
+                    rustAnalysisFactors,
+                    selectedFiles
+                );
+                aiAnalysisSuccess = true;
+                this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
+            } catch (aiErr) {
+                aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
+                this.logger.warn(aiAnalysisError);
+            }
 
             // Step 5: Build triple analysis report
             const endTime = Date.now();
             const memoryEnd = process.memoryUsage().heapUsed;
 
-            console.log("====================================================")
-            console.log(rustAnalysisFactors);
-            console.log("====================================================")
+            // console.log("====================================================")
+            // console.log(rustAnalysisFactors);
+            // console.log("====================================================")
 
             const staticAnalysisScores = {
                 structural: {
@@ -639,13 +639,12 @@ export class StaticAnalysisService {
                     version: '1.0.0',
                     success: aiAnalysisSuccess,
                     error: aiAnalysisError,
-                    analysisFactors: aiAnalysisFactors,
+                    analysisFactors: aiAnalysisFactors?.codeAnalysis || {},
                     documentation_clarity: (aiAnalysisFactors as any).documentationClarity?.overallClarityScore || 0,
                     testing_coverage: (aiAnalysisFactors as any).testingCoverage?.overallTestingScore || 0,
                     financial_logic_complexity: (aiAnalysisFactors as any).financialLogicIntricacy?.overallFinancialComplexityScore || 0,
                     attack_vector_risk: (aiAnalysisFactors as any).profitAttackVectors?.overallAttackVectorScore || 0,
                     value_at_risk: (aiAnalysisFactors as any).valueAtRisk?.overallValueAtRiskScore || 0,
-                    game_theory_complexity: (aiAnalysisFactors as any).gameTheoryIncentives?.overallGameTheoryScore || 0,
                 },
 
                 performance: {

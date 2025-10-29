@@ -66,13 +66,29 @@ export interface GameTheoryMetrics {
     confidence: number;
 }
 
+export interface RiskHotspot {
+    file: string;
+    lines: string;
+    risk_score: number;
+    components: string[];
+}
+
+export interface CodeMetrics {
+    highRiskHotspots: RiskHotspot[];
+    mediumRiskHotspots: RiskHotspot[];
+    recommendations: string[];
+    overallRiskScore: number;
+    findings: string[];
+    confidence: number;
+}
+
 export interface AiAnalysisResults {
+    codeAnalysis: CodeMetrics;
     documentationClarity: DocumentationMetrics;
     testingCoverage: TestingMetrics;
     financialLogicIntricacy: FinancialLogicMetrics;
     profitAttackVectors: AttackVectorMetrics;
     valueAtRisk: ValueAtRiskMetrics;
-    gameTheoryIncentives: GameTheoryMetrics;
 }
 
 @Injectable()
@@ -104,36 +120,22 @@ export class AiAnalysisService {
 
             // Execute analyses in batches to avoid rate limits
             // Batch 1: Core factors (most important)
-            const [documentationResult, testingResult] = await Promise.allSettled([
+            const [codeAnalysisResult, documentationResult, testingResult, financialLogicResult, attackVectorsResult, valueAtRiskResult] = await Promise.allSettled([
+                this.analyzeCode(context),
                 this.analyzeDocumentationClarity(context),
                 this.analyzeTestingCoverage(context),
-            ]);
-
-            // Small delay to avoid rate limits
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Batch 2: Financial and security factors
-            const [financialLogicResult, attackVectorsResult] = await Promise.allSettled([
                 this.analyzeFinancialLogicIntricacy(context),
                 this.analyzeProfitAttackVectors(context),
-            ]);
-
-            // Small delay to avoid rate limits
-            await new Promise(resolve => setTimeout(resolve, 2000));
-
-            // Batch 3: Advanced factors
-            const [valueAtRiskResult, gameTheoryResult] = await Promise.allSettled([
-                this.analyzeValueAtRisk(context),
-                this.analyzeGameTheoryIncentives(context),
+                this.analyzeValueAtRisk(context)
             ]);
 
             const results: AiAnalysisResults = {
+                codeAnalysis: this.extractResult(codeAnalysisResult, 'CodeMetrics'),
                 documentationClarity: this.extractResult(documentationResult, 'DocumentationMetrics'),
                 testingCoverage: this.extractResult(testingResult, 'TestingMetrics'),
                 financialLogicIntricacy: this.extractResult(financialLogicResult, 'FinancialLogicMetrics'),
                 profitAttackVectors: this.extractResult(attackVectorsResult, 'AttackVectorMetrics'),
                 valueAtRisk: this.extractResult(valueAtRiskResult, 'ValueAtRiskMetrics'),
-                gameTheoryIncentives: this.extractResult(gameTheoryResult, 'GameTheoryMetrics'),
             };
 
             this.logger.log('AI analysis completed successfully');
@@ -190,6 +192,31 @@ export class AiAnalysisService {
             extractedPath,
             fileCount: files.length,
         };
+    }
+
+    private async analyzeCode(context: any): Promise<CodeMetrics> {
+        const prompt = this.buildCodePrompt(context);
+        const openai = this.getOpenAIClient();
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [
+                {
+                    role: 'system',
+                    content: this.getCodeSystemPrompt()
+                },
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ],
+            temperature: 0.1,
+            response_format: { type: 'json_object' },
+            max_tokens: 2000,
+        });
+
+        const content = response.choices[0].message.content;
+        return this.parseAndValidateResponse(content, 'CodeMetrics');
     }
 
     private async analyzeDocumentationClarity(context: any): Promise<DocumentationMetrics> {
@@ -315,31 +342,6 @@ export class AiAnalysisService {
 
         const content = response.choices[0].message.content;
         return this.parseAndValidateResponse(content, 'ValueAtRiskMetrics');
-    }
-
-    private async analyzeGameTheoryIncentives(context: any): Promise<GameTheoryMetrics> {
-        const prompt = this.buildGameTheoryPrompt(context);
-        const openai = this.getOpenAIClient();
-
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                {
-                    role: 'system',
-                    content: this.getGameTheorySystemPrompt()
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
-            ],
-            temperature: 0.1,
-            response_format: { type: 'json_object' },
-            max_tokens: 1500,
-        });
-
-        const content = response.choices[0].message.content;
-        return this.parseAndValidateResponse(content, 'GameTheoryMetrics');
     }
 
     // System Prompts for each factor
@@ -476,33 +478,114 @@ Scoring Guidelines:
 Always provide specific findings that justify your scores.`;
     }
 
-    private getGameTheorySystemPrompt(): string {
-        return `You are an expert smart contract security auditor analyzing Rust code for game theory and incentive alignment.
+    private getCodeSystemPrompt(): string {
+        return `You are an expert smart contract security auditor analyzing Rust code for risk hotspots and security vulnerabilities.
 
 CRITICAL: You must respond ONLY with valid JSON. No explanations, no markdown, no additional text.
 
 Your response must match this exact schema:
 {
-  "incentiveAlignmentScore": number (0-100),
-  "economicSecurityDependencies": number (0-100),
-  "maliciousActorResistance": number (0-100),
-  "protocolGovernanceComplexity": number (0-100),
-  "overallGameTheoryScore": number (0-100),
-  "findings": string[],
-  "confidence": number (0-100)
+  "highRiskHotspots": [
+    {
+      "file": string (relative file path),
+      "lines": string (line range like "210-348"),
+      "risk_score": number (0-1, where 1 is highest risk),
+      "components": string[] (array of risk components like ["pda_derivation", "lamport_math"])
+    }
+  ],
+  "mediumRiskHotspots": [
+    {
+      "file": string (relative file path),
+      "lines": string (line range like "55-144"),
+      "risk_score": number (0-1, where 1 is highest risk),
+      "components": string[] (array of risk components like ["cpi_signer", "oracle_read"])
+    }
+  ],
+  "recommendations": string[] (array of specific improvement recommendations),
+  "overallRiskScore": number (0-100, overall risk assessment),
+  "findings": string[] (array of general findings),
+  "confidence": number (0-100, confidence in the analysis)
 }
 
-Scoring Guidelines:
-- 90-100: Complex game theory with sophisticated incentive mechanisms
-- 70-89: Advanced incentive structures with some complexity
-- 50-69: Standard incentive mechanisms
-- 30-49: Basic incentive structures
-- 0-29: Simple or minimal incentive mechanisms
+Risk Assessment Guidelines:
+- HIGH RISK (0.7-1.0): Critical vulnerabilities, complex financial logic, unsafe operations, missing checks
+- MEDIUM RISK (0.4-0.69): Potential issues, moderate complexity, some missing validations
+- LOW RISK (0.0-0.39): Minor issues, well-implemented code, good practices
 
-Always provide specific findings that justify your scores.`;
+Focus on identifying:
+1. Complex financial calculations and mathematical operations
+2. PDA derivation and account validation logic
+3. CPI calls and external integrations
+4. Oracle usage and price feed dependencies
+5. Unsafe operations and potential overflow/underflow
+6. Missing access controls and authorization checks
+7. Reentrancy and state manipulation risks
+8. Economic attack vectors and MEV opportunities
+
+Always provide specific file paths, line ranges, and detailed component descriptions.`;
     }
 
     // Prompt builders with comprehensive context
+    private buildCodePrompt(context: any): string {
+        const codeContent = this.truncateCodeContent(context.codeFiles, 12000);
+        const rustContext = this.formatRustAnalysisContext(context.rustAnalysisResults);
+
+        return `Analyze this Rust smart contract for risk hotspots and security vulnerabilities:
+
+CODE CONTEXT:
+${codeContent}
+
+RUST ANALYSIS CONTEXT:
+${rustContext}
+
+PROJECT METADATA:
+- Total Files: ${context.fileCount}
+- Total Lines: ${context.totalLines}
+- Main Files: ${context.codeFiles.filter(f => f.isMain).length}
+- Test Files: ${context.codeFiles.filter(f => f.isTest).length}
+- Complex Functions: ${context.rustAnalysisResults?.complexFunctions || 'Unknown'}
+- CPI Calls: ${context.rustAnalysisResults?.cpiCalls || 'Unknown'}
+- Unsafe Operations: ${context.rustAnalysisResults?.unsafeOperations || 'Unknown'}
+
+ANALYSIS REQUIREMENTS:
+1. Identify HIGH RISK hotspots (0.7-1.0 risk score):
+   - Critical vulnerabilities and security flaws
+   - Complex financial calculations with potential for errors
+   - Unsafe operations and potential overflow/underflow
+   - Missing access controls and authorization checks
+   - PDA derivation logic with potential vulnerabilities
+   - CPI calls with insufficient validation
+
+2. Identify MEDIUM RISK hotspots (0.4-0.69 risk score):
+   - Potential issues that need attention
+   - Moderate complexity areas that could be simplified
+   - Some missing validations or error handling
+   - Areas with unclear logic or potential edge cases
+
+3. Provide specific recommendations for improvement:
+   - Code refactoring suggestions
+   - Security improvements
+   - Best practice implementations
+   - Architecture improvements
+
+4. Focus on these specific areas:
+   - Mathematical operations and financial calculations
+   - Account validation and PDA derivation
+   - External integrations and CPI calls
+   - Oracle usage and price feed dependencies
+   - State management and reentrancy risks
+   - Economic attack vectors and MEV opportunities
+
+For each hotspot, provide:
+- Exact file path (relative to project root)
+- Specific line range where the risk is located
+- Risk score (0-1 scale)
+- Components involved (e.g., ["pda_derivation", "lamport_math", "cpi_signer"])
+- Clear justification for the risk assessment
+
+Provide your analysis as JSON following the exact schema specified in the system prompt.`;
+    }
+
     private buildDocumentationPrompt(context: any): string {
         const codeContent = this.truncateCodeContent(context.codeFiles, 8000);
         const rustContext = this.formatRustAnalysisContext(context.rustAnalysisResults);
@@ -653,36 +736,6 @@ Assess the economic scale and potential impact of this protocol.
 Provide your analysis as JSON following the exact schema specified in the system prompt.`;
     }
 
-    private buildGameTheoryPrompt(context: any): string {
-        const codeContent = this.truncateCodeContent(context.codeFiles, 8000);
-        const rustContext = this.formatRustAnalysisContext(context.rustAnalysisResults);
-
-        return `Analyze the game theory and incentive alignment of this Rust smart contract:
-
-CODE CONTEXT:
-${codeContent}
-
-RUST ANALYSIS CONTEXT:
-${rustContext}
-
-PROJECT METADATA:
-- Total Files: ${context.fileCount}
-- Total Lines: ${context.totalLines}
-- Privileged Roles: ${context.rustAnalysisResults?.privilegedRoles || 'Unknown'}
-
-ANALYSIS REQUIREMENTS:
-1. Evaluate incentive alignment and economic security dependencies
-2. Assess resistance to malicious actors and economic attacks
-3. Analyze protocol governance complexity and decision-making mechanisms
-4. Review game-theoretic assumptions and their validity
-5. Consider the context from Rust analysis showing privileged roles and admin functions
-6. Focus on protocols where security depends on economic incentives being aligned
-
-Assess the game-theoretic foundations and incentive mechanisms.
-
-Provide your analysis as JSON following the exact schema specified in the system prompt.`;
-    }
-
     // Utility methods
     private truncateCodeContent(codeFiles: any[], maxTokens: number): string {
         const maxChars = maxTokens * 3; // More conservative estimation: 1 token ≈ 3 characters
@@ -747,6 +800,7 @@ RUST ANALYSIS SUMMARY:
 
     private validateResponseSchema(response: any, type: string): void {
         const schemas = {
+            CodeMetrics: ['highRiskHotspots', 'mediumRiskHotspots', 'recommendations', 'overallRiskScore', 'findings', 'confidence'],
             DocumentationMetrics: ['codeCommentsScore', 'functionDocumentationScore', 'readmeQualityScore', 'securityDocumentationScore', 'overallClarityScore', 'findings', 'confidence'],
             TestingMetrics: ['unitTestCoverage', 'integrationTestCoverage', 'testQualityScore', 'edgeCaseTestingScore', 'securityTestScore', 'overallTestingScore', 'findings', 'confidence'],
             FinancialLogicMetrics: ['mathematicalComplexityScore', 'algorithmSophisticationScore', 'interestRateComplexityScore', 'ammPricingComplexityScore', 'rewardDistributionComplexityScore', 'riskManagementComplexityScore', 'overallFinancialComplexityScore', 'findings', 'confidence'],
@@ -769,6 +823,14 @@ RUST ANALYSIS SUMMARY:
 
     private getDefaultResponse(type: string): any {
         const defaults = {
+            CodeMetrics: {
+                highRiskHotspots: [],
+                mediumRiskHotspots: [],
+                recommendations: ['AI analysis failed - unable to provide recommendations'],
+                overallRiskScore: 50,
+                findings: ['AI analysis failed - using default scores'],
+                confidence: 0
+            },
             DocumentationMetrics: {
                 codeCommentsScore: 50,
                 functionDocumentationScore: 50,
@@ -814,15 +876,6 @@ RUST ANALYSIS SUMMARY:
                 marketCapImplications: 50,
                 economicStakesScore: 50,
                 overallValueAtRiskScore: 50,
-                findings: ['AI analysis failed - using default scores'],
-                confidence: 0
-            },
-            GameTheoryMetrics: {
-                incentiveAlignmentScore: 50,
-                economicSecurityDependencies: 50,
-                maliciousActorResistance: 50,
-                protocolGovernanceComplexity: 50,
-                overallGameTheoryScore: 50,
                 findings: ['AI analysis failed - using default scores'],
                 confidence: 0
             },
