@@ -8,33 +8,33 @@ export class StaticAnalysisUtils {
 
     calculateTotalScore(staticAnalysisScores: any): any {
         const structuralScore = (
-            staticAnalysisScores.structural.loc_factor * 0.25 +
-            staticAnalysisScores.structural.total_functions_factor * 0.25 +
-            staticAnalysisScores.structural.code_complexity_factor * 0.20 +
-            staticAnalysisScores.structural.modularity_factor * 0.15 +
-            staticAnalysisScores.structural.dependency_security_factor * 0.15
+            staticAnalysisScores.structural["total_statement_count"] * 0.25 +
+            staticAnalysisScores.structural["number_of_functions/instructions_handlers"] * 0.25 +
+            staticAnalysisScores.structural["cyclomatic_complexity_&_control_flow"] * 0.20 +
+            staticAnalysisScores.structural["modularity_and_files_per_modules_count"] * 0.15 +
+            staticAnalysisScores.structural["external_dependencies"] * 0.15
         );
 
         const securityScore = (
-            staticAnalysisScores.security.access_control_factor * 0.20 +
-            staticAnalysisScores.security.pda_complexity_factor * 0.15 +
-            staticAnalysisScores.security.cpi_factor * 0.15 +
-            staticAnalysisScores.security.input_constraints_factor * 0.15 +
-            staticAnalysisScores.security.arithmatic_factor * 0.10 +
-            staticAnalysisScores.security.priviliged_roles_factor * 0.10 +
-            staticAnalysisScores.security.unsafe_lowlevel_factor * 0.10 +
-            staticAnalysisScores.security.error_handling_factor * 0.05
+            staticAnalysisScores.security["access_controlled_handlers"] * 0.20 +
+            staticAnalysisScores.security["PDA_seeds_surface_&_ownership"] * 0.15 +
+            staticAnalysisScores.security["cross_program_invocation_(CPI)"] * 0.15 +
+            staticAnalysisScores.security["input/constraints_surface"] * 0.15 +
+            staticAnalysisScores.security["arithmetic_operations"] * 0.10 +
+            staticAnalysisScores.security["priviliged_roles_& _admin_actions"] * 0.10 +
+            staticAnalysisScores.security["unsafe/low_level_usage"] * 0.10 +
+            staticAnalysisScores.security["error_handling_footprint"] * 0.05
         );
         const systemicScore = (
-            staticAnalysisScores.systemic.upgradeability_factor * 0.20 +
-            staticAnalysisScores.systemic.external_integration_factor * 0.30 +
-            staticAnalysisScores.systemic.composability_factor * 0.20 +
-            staticAnalysisScores.systemic.dos_resource_limits_factor * 0.15 +
-            staticAnalysisScores.systemic.operational_security_factor * 0.15
+            staticAnalysisScores.systemic["upgradability_and_governance_control"] * 0.20 +
+            staticAnalysisScores.systemic["external_integration_&_oracles"] * 0.30 +
+            staticAnalysisScores.systemic["composability_and_inter_program_complexity"] * 0.20 +
+            staticAnalysisScores.systemic["denial_of_service_&_resource_limits"] * 0.15 +
+            staticAnalysisScores.systemic["operational_security_factors"] * 0.15
         );
         const economicScore = (
-            staticAnalysisScores.economic.asset_types_factor * 0.50 +
-            staticAnalysisScores.economic.invariants_risk_factor * 0.50
+            staticAnalysisScores.economic["number_of_asset_&_asset_types"] * 0.50 +
+            staticAnalysisScores.economic["invariants_&_risk_parameters"] * 0.50
         );
         const totalScore = (
             structuralScore * 0.20 +
