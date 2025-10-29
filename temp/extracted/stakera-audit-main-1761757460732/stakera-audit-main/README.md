@@ -1,1 +1,0 @@
-# stakera_contract

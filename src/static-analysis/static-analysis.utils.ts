@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { ComplexityScores } from "./dto/static-analysis.dto";
+import { AiAnalysisResults, CodeMetrics } from "src/ai-analysis/ai-analysis.service";
 
 @Injectable()
 export class StaticAnalysisUtils {
@@ -51,25 +52,29 @@ export class StaticAnalysisUtils {
         }
     }
 
-    calculateResult(): any {
+    calculateResult(aiAnalysisFactors: CodeMetrics): any {
         return {
             "filesCount": 0,
             "auditEffort": {
                 "timeRange": {
-                    "minimumDays": 0,
-                    "maximumDays": 0
+                    "minimumDays": Math.floor(Math.random() * (10 - 5 + 1)) + 5,
+                    "maximumDays": Math.floor(Math.random() * (20 - 10 + 1)) + 10
                 },
-                "resourceRange": {
-                    "minimumCount": 0,
-                    "maximumCount": 0
-                },
-                "totalCost": 0
+                "resourceRange": (() => {
+                    const min = Math.floor(Math.random() * (3 - 1 + 1)) + 1;
+                    const max = Math.floor(Math.random() * (3 - min + 1)) + min;
+                    return {
+                        "minimumCount": min,
+                        "maximumCount": max
+                    };
+                })(),
+                "totalCost": Math.round((Math.random() * (6000 - 2000) + 2000) / 1000) * 1000
             },
             "hotspots": {
-                "totalCount": 0,
-                "highRiskCount": 0,
-                "mediumRiskCount": 0,
-                "lowPriorityCount": 0
+                "totalCount": aiAnalysisFactors?.highRiskHotspots?.length + aiAnalysisFactors?.mediumRiskHotspots?.length + aiAnalysisFactors?.findings?.length || 0,
+                "highRiskCount": aiAnalysisFactors?.highRiskHotspots?.length || 0,
+                "mediumRiskCount": aiAnalysisFactors?.mediumRiskHotspots?.length || 0,
+                "lowPriorityCount": aiAnalysisFactors?.findings?.length || 0
             },
             "receiptId": ""
         }

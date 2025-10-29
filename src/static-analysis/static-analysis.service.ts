@@ -55,170 +55,6 @@ export class StaticAnalysisService {
         private readonly staticAnalysisUtils: StaticAnalysisUtils,
     ) { }
 
-    /**
-     * Analyze a Rust smart contract repository using the Rust semantic analyzer
-     */
-    async analyzeRustContractWithRustEngine(
-        owner: string,
-        repo: string,
-        accessToken: string,
-        selectedFiles?: string[],
-        analysisOptions?: any,
-    ): Promise<StaticAnalysisReport> {
-        this.logger.log(`Starting Rust semantic analysis for ${owner}/${repo}`);
-
-        const startTime = Date.now();
-        const startMemory = process.memoryUsage().heapUsed;
-
-        try {
-            // Check if Rust analyzer is available
-            const isRustAnalyzerAvailable = await this.rustAnalyzerService.isAvailable();
-            if (!isRustAnalyzerAvailable) {
-                this.logger.warn('Rust analyzer not available, falling back to TypeScript analyzer');
-                return this.analyzeRustContract(owner, repo, accessToken, selectedFiles, analysisOptions);
-            }
-
-            // Fetch repository files
-            const repoFiles = await this.githubService.getRepositoryFiles(owner, repo, accessToken);
-
-            // Filter to Rust files
-            const rustFiles = repoFiles.filter(file => file.name.endsWith('.rs'));
-
-            // Apply file selection if provided
-            const filesToAnalyze = selectedFiles ?
-                rustFiles.filter(file => selectedFiles.includes(file.path)) :
-                rustFiles;
-
-            if (filesToAnalyze.length === 0) {
-                throw new Error('No Rust files found to analyze');
-            }
-
-            this.logger.log(`Found ${filesToAnalyze.length} Rust files to analyze`);
-
-            // Download and analyze each file with Rust analyzer
-            const rustAnalysisResults: any[] = [];
-            const tempDir = path.join(process.cwd(), 'temp', 'rust-analysis', `${owner}-${repo}-${Date.now()}`);
-
-            try {
-                // Create temporary directory
-                await fs.promises.mkdir(tempDir, { recursive: true });
-
-                // Download and analyze files
-                for (const file of filesToAnalyze) {
-                    const content = await this.githubService.getFileContent(owner, repo, file.path, accessToken);
-                    const tempFilePath = path.join(tempDir, file.name);
-
-                    // Write file to temp directory
-                    await fs.promises.writeFile(tempFilePath, content);
-
-                    // Analyze with Rust analyzer
-                    const rustResult = await this.rustAnalyzerService.analyzeFile(tempFilePath);
-                    rustAnalysisResults.push(rustResult);
-                }
-
-                // Perform TypeScript analysis for comparison
-                this.logger.log('Performing TypeScript analysis for comparison...');
-                const typescriptReport = await this.analyzeRustContract(owner, repo, accessToken, selectedFiles, analysisOptions);
-
-                // Aggregate Rust results
-                const rustReport = this.aggregateRustAnalysisResults(rustAnalysisResults, {
-                    owner,
-                    repo,
-                    branch: 'main', // TODO: get actual branch
-                });
-
-                // Create dual analysis report
-                const dualAnalysisReport = {
-                    ...typescriptReport, // Base structure from TypeScript analysis
-
-                    // Analysis metadata
-                    analysis_engine: 'dual-analyzer',
-                    analyzer_version: '0.2.0',
-                    analysis_date: new Date().toISOString(),
-
-                    // TypeScript analysis results
-                    typescript_analysis: {
-                        engine: 'typescript-regex-analyzer',
-                        version: '0.1.0',
-                        success: true,
-                        total_lines_of_code: (typescriptReport as any).total_lines_of_code,
-                        total_functions: (typescriptReport as any).total_functions,
-                        complex_math_operations: (typescriptReport as any).complex_math_operations,
-                        cyclomatic_complexity: (typescriptReport as any).cyclomatic_complexity,
-                        analysisFactors: typescriptReport,
-                        complexityScores: (typescriptReport as any).complexityScores,
-                        scores: (typescriptReport as any).scores,
-                    },
-
-                    // Rust analysis results
-                    rust_analysis: {
-                        engine: 'rust-semantic-analyzer',
-                        version: '0.1.0',
-                        success: true,
-                        error: null,
-                        total_lines_of_code: (rustReport as any).total_lines_of_code,
-                        total_functions: (rustReport as any).total_functions,
-                        complex_math_operations: (rustReport as any).complex_math_operations,
-                        cyclomatic_complexity: (rustReport as any).cyclomatic_complexity,
-                        safety_ratio: (rustReport as any).safety_ratio,
-                        semantic_patterns: (rustReport as any).semantic_patterns,
-                        analysisFactors: rustReport,
-                        complexityScores: (rustReport as any).complexityScores,
-                        scores: (rustReport as any).scores,
-                        rust_analysis_factors: (rustReport as any).rust_analysis_factors,
-                    },
-
-                    // Comparison metrics
-                    analysis_comparison: {
-                        lines_of_code_diff: (rustReport as any).total_lines_of_code - (typescriptReport as any).total_lines_of_code,
-                        functions_diff: (rustReport as any).total_functions - (typescriptReport as any).total_functions,
-                        math_operations_diff: (rustReport as any).complex_math_operations - (typescriptReport as any).complex_math_operations,
-                        complexity_diff: (rustReport as any).cyclomatic_complexity - (typescriptReport as any).cyclomatic_complexity,
-                        accuracy_notes: [
-                            'TypeScript analysis uses regex-based pattern matching',
-                            'Rust analysis uses AST-based semantic parsing',
-                            'Rust analysis provides more accurate complex math operation counts',
-                            'Rust analysis includes safety metrics and semantic tagging'
-                        ]
-                    }
-                } as StaticAnalysisReport;
-
-                // Calculate execution time and memory
-                const endTime = Date.now();
-                const endMemory = process.memoryUsage().heapUsed;
-
-                // Add performance metrics to the dual report
-                (dualAnalysisReport as any).performance_metrics = {
-                    execution_time_ms: endTime - startTime,
-                    memory_usage_mb: Math.round((endMemory - startMemory) / 1024 / 1024),
-                    files_analyzed: filesToAnalyze.length,
-                    analysis_engine: 'dual-analyzer',
-                    typescript_analysis_time: 'included_in_total',
-                    rust_analysis_time: 'included_in_total',
-                };
-
-                // Save to database
-                const savedReport = await this.staticAnalysisModel.create(dualAnalysisReport);
-
-                this.logger.log(`Dual analysis completed for ${owner}/${repo} in ${endTime - startTime}ms`);
-                this.logger.log(`TypeScript vs Rust comparison: Math ops ${(typescriptReport as any).complex_math_operations} vs ${(rustReport as any).complex_math_operations} (diff: ${(rustReport as any).complex_math_operations - (typescriptReport as any).complex_math_operations})`);
-
-                return dualAnalysisReport;
-
-            } finally {
-                // Cleanup temporary directory
-                try {
-                    await fs.promises.rm(tempDir, { recursive: true, force: true });
-                } catch (cleanupError) {
-                    this.logger.warn(`Failed to cleanup temp directory: ${cleanupError.message}`);
-                }
-            }
-
-        } catch (error) {
-            this.logger.error(`Rust semantic analysis failed for ${owner}/${repo}:`, error);
-            throw error;
-        }
-    }
 
     /**
      * Analyze a Rust smart contract repository for Solana/Anchor (Legacy TypeScript analyzer)
@@ -461,6 +297,65 @@ export class StaticAnalysisService {
     }
 
     /**
+     * Analyze a Rust smart contract repository by cloning to temp directory and using analyzeUploadedContract
+     */
+    async analyzeRustContractWithWorkspace(
+        owner: string,
+        repo: string,
+        accessToken: string,
+        selectedFiles?: string[],
+        analysisOptions?: any,
+    ): Promise<StaticAnalysisReport> {
+        this.logger.log(`Starting workspace-based analysis for ${owner}/${repo}`);
+
+        let repoPath: string | null = null;
+
+        try {
+            // Step 1: Get repository information and clone
+            const repoInfo = await this.githubService.getRepositoryInfo(owner, repo, accessToken);
+            const repoUrl = repoInfo.clone_url;
+            const repoName = `${owner}-${repo}`;
+
+            // Clone to temp/repos directory (GitHub service already clones to temp/repos)
+            repoPath = await this.githubService.cloneRepository(repoUrl, repoName, accessToken);
+            this.logger.log(`Repository cloned to: ${repoPath}`);
+
+            try {
+                // Step 2: Use the existing analyzeUploadedContract function
+                this.logger.log(`Using analyzeUploadedContract for cloned repository: ${repoName}`);
+                const report = await this.analyzeUploadedContract(
+                    repoPath,
+                    repoName,
+                    `${owner}-${repo}.zip`, // Original filename for consistency
+                    selectedFiles
+                );
+
+                // Update the report with GitHub-specific information
+                report.repository = `${owner}/${repo}`;
+                report.repositoryUrl = repoInfo.html_url;
+
+                this.logger.log(`Successfully completed workspace-based analysis for ${owner}/${repo}`);
+                return report;
+
+            } finally {
+                // Cleanup the cloned repository from temp directory
+                if (repoPath && fs.existsSync(repoPath)) {
+                    try {
+                        await fs.promises.rm(repoPath, { recursive: true, force: true });
+                        this.logger.log(`Cleaned up cloned repository: ${repoPath}`);
+                    } catch (cleanupErr) {
+                        this.logger.warn(`Failed to cleanup cloned repository: ${cleanupErr.message}`);
+                    }
+                }
+            }
+
+        } catch (error) {
+            this.logger.error(`Workspace-based analysis failed for ${owner}/${repo}: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
      * Debug framework detection - returns detailed info about repository structure
      */
     async analyzeUploadedContract(
@@ -657,7 +552,7 @@ export class StaticAnalysisService {
                 createdAt: new Date(),
                 updatedAt: new Date(),
 
-                result: this.staticAnalysisUtils.calculateResult()
+                result: this.staticAnalysisUtils.calculateResult(aiAnalysisFactors?.codeAnalysis || {})
             } as StaticAnalysisReport;
 
             // Step 5: Save report to MongoDB
@@ -1789,187 +1684,6 @@ export class StaticAnalysisService {
         return Math.round(mathOperationsCount);
     }
 
-    /**
-     * Aggregate multiple Rust analysis results into a single report
-     */
-    private aggregateRustAnalysisResults(
-        rustResults: any[],
-        repositoryInfo: { owner: string; repo: string; branch: string }
-    ): StaticAnalysisReport {
-        // Aggregate all metrics
-        const totalFunctions = rustResults.reduce((sum, result) => sum + result.function_count, 0);
-        const totalLinesOfCode = rustResults.reduce((sum, result) => sum + result.lines_of_code, 0);
-
-        // Aggregate arithmetic operations
-        const totalArithmeticOps = rustResults.reduce((sum, result) =>
-            sum + result.aggregated.total_arithmetic_ops, 0);
-        const totalMathFunctions = rustResults.reduce((sum, result) =>
-            sum + result.aggregated.total_math_functions, 0);
-
-        // Calculate weighted averages
-        const avgComplexity = totalFunctions > 0 ?
-            rustResults.reduce((sum, result) =>
-                sum + (result.aggregated.avg_cyclomatic_complexity * result.function_count), 0) / totalFunctions : 0;
-
-        const avgSafetyRatio = rustResults.length > 0 ?
-            rustResults.reduce((sum, result) => sum + result.aggregated.safety_ratio, 0) / rustResults.length : 1.0;
-
-        // Collect all semantic patterns
-        const allSemanticPatterns = new Set<string>();
-        rustResults.forEach(result => {
-            result.functions.forEach(func => {
-                func.semantic_tags.forEach(tag => allSemanticPatterns.add(tag));
-            });
-        });
-
-        // Create base report structure with simplified complexity scores
-        const structuralScore = this.calculateStructuralComplexity(rustResults);
-        const securityScore = this.calculateSecurityComplexity(rustResults);
-        const systemicScore = this.calculateSystemicComplexity(rustResults);
-        const economicScore = this.calculateEconomicComplexity(rustResults);
-
-        // Create report with required fields and cast to StaticAnalysisReport
-        const report = {
-            repository: repositoryInfo.repo,
-            repositoryUrl: `https://github.com/${repositoryInfo.owner}/${repositoryInfo.repo}`,
-            branch: repositoryInfo.branch,
-            analysis_date: new Date().toISOString(),
-            language: 'rust',
-            framework: 'anchor',
-
-            // Basic metrics
-            total_lines_of_code: totalLinesOfCode,
-            total_functions: totalFunctions,
-
-            // Complexity metrics (now accurate!)
-            complex_math_operations: totalArithmeticOps + totalMathFunctions,
-            cyclomatic_complexity: avgComplexity,
-
-            // Safety metrics
-            safety_ratio: avgSafetyRatio,
-
-            // Semantic analysis
-            semantic_patterns: Array.from(allSemanticPatterns),
-
-            // Analysis metadata
-            analysis_engine: 'rust-semantic-analyzer',
-            analyzer_version: '0.1.0',
-
-            // Additional fields to satisfy interface
-            analysisFactors: this.extractRustAnalysisFactors(rustResults),
-            complexityScores: {
-                structural: { score: structuralScore, details: {} as any },
-                security: { score: securityScore, details: {} as any },
-                systemic: { score: systemicScore, details: {} as any },
-                economic: { score: economicScore, details: {} as any },
-            },
-
-            // Additional Rust-specific metrics
-            rust_analysis_factors: this.extractRustAnalysisFactors(rustResults),
-            // Additional required fields
-            scores: {
-                overall: structuralScore + securityScore + systemicScore + economicScore,
-                structural: structuralScore,
-                security: securityScore,
-                systemic: systemicScore,
-                economic: economicScore,
-            },
-            performance: {
-                execution_time: 0,
-                memory_usage: 0,
-            },
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        } as unknown as StaticAnalysisReport;
-
-        // Add calculated complexity scores to the report
-        (report as any).structural_complexity = structuralScore;
-        (report as any).security_complexity = securityScore;
-        (report as any).systemic_complexity = systemicScore;
-        (report as any).economic_complexity = economicScore;
-        (report as any).overall_complexity_score = structuralScore + securityScore + systemicScore + economicScore;
-
-        return report;
-    }
-
-    private calculateStructuralComplexity(rustResults: any[]): number {
-        const totalFunctions = rustResults.reduce((sum, result) => sum + result.function_count, 0);
-        const avgComplexity = totalFunctions > 0 ?
-            rustResults.reduce((sum, result) =>
-                sum + (result.aggregated.avg_cyclomatic_complexity * result.function_count), 0) / totalFunctions : 0;
-
-        return Math.min(25, avgComplexity * 2 + (totalFunctions / 10) * 2);
-    }
-
-    private calculateSecurityComplexity(rustResults: any[]): number {
-        const avgSafetyRatio = rustResults.length > 0 ?
-            rustResults.reduce((sum, result) => sum + result.aggregated.safety_ratio, 0) / rustResults.length : 1.0;
-        const totalUnsafeOps = rustResults.reduce((sum, result) => sum + result.aggregated.total_unsafe_ops, 0);
-
-        return Math.min(25, (1 - avgSafetyRatio) * 20 + (totalUnsafeOps / 10) * 5);
-    }
-
-    private calculateSystemicComplexity(rustResults: any[]): number {
-        const totalArithmeticOps = rustResults.reduce((sum, result) =>
-            sum + result.aggregated.total_arithmetic_ops, 0);
-        const totalMathFunctions = rustResults.reduce((sum, result) =>
-            sum + result.aggregated.total_math_functions, 0);
-
-        return Math.min(25, (totalArithmeticOps / 50) * 15 + (totalMathFunctions / 20) * 10);
-    }
-
-    private calculateEconomicComplexity(rustResults: any[]): number {
-        const totalFunctions = rustResults.reduce((sum, result) => sum + result.function_count, 0);
-        const defiPatterns = rustResults.reduce((sum, result) => {
-            return sum + result.functions.filter(func =>
-                func.semantic_tags.some(tag =>
-                    ['token_swap', 'liquidity_management', 'price_calculation', 'fee_calculation'].includes(tag)
-                )
-            ).length;
-        }, 0);
-
-        return totalFunctions > 0 ? Math.min(25, (defiPatterns / totalFunctions) * 25) : 0;
-    }
-
-    private extractRustAnalysisFactors(rustResults: any[]): RustAnalysisFactors {
-        // Aggregate all the detailed metrics from Rust analysis
-        const totalArithmetic = rustResults.reduce((acc, result) => {
-            result.functions.forEach(func => {
-                acc.checked_add += func.arithmetic.checked_add;
-                acc.checked_mul += func.arithmetic.checked_mul;
-                acc.checked_div += func.arithmetic.checked_div;
-                acc.raw_mul += func.arithmetic.raw_mul;
-                acc.raw_div += func.arithmetic.raw_div;
-                acc.integer_sqrt += func.arithmetic.integer_sqrt;
-                acc.ceil_div += func.arithmetic.ceil_div;
-            });
-            return acc;
-        }, {
-            checked_add: 0, checked_mul: 0, checked_div: 0,
-            raw_mul: 0, raw_div: 0, integer_sqrt: 0, ceil_div: 0
-        });
-
-        // Create a simplified rust analysis factors object
-        const factors = {
-            lines_of_code: rustResults.reduce((sum, result) => sum + result.lines_of_code, 0),
-            number_of_functions: rustResults.reduce((sum, result) => sum + result.function_count, 0),
-            cyclomatic_complexity: rustResults.reduce((sum, result) =>
-                sum + result.aggregated.avg_cyclomatic_complexity * result.function_count, 0),
-            complex_math_operations: totalArithmetic.checked_add + totalArithmetic.checked_mul +
-                totalArithmetic.checked_div + totalArithmetic.raw_mul + totalArithmetic.raw_div +
-                totalArithmetic.integer_sqrt + totalArithmetic.ceil_div,
-            totalLinesOfCode: rustResults.reduce((sum, result) => sum + result.lines_of_code, 0),
-            numPrograms: 1,
-            numFunctions: rustResults.reduce((sum, result) => sum + result.function_count, 0),
-            // Add other required fields with default values
-            numStateVariables: 0,
-            numInstructionHandlers: 0,
-            cpiUsage: 0,
-            timeDependentLogic: 0,
-        };
-
-        return factors as unknown as RustAnalysisFactors;
-    }
 
     /**
      * Get accurate complex math operations count using Rust analyzer when available
