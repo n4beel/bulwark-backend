@@ -7,6 +7,8 @@ import {
     Logger,
     Get,
     Param,
+    UseGuards,
+    Request,
 } from '@nestjs/common';
 import {
     StaticAnalysisService,
@@ -14,6 +16,10 @@ import {
 } from './static-analysis.service';
 import { StaticAnalysisDto, StaticAnalysisReportDocument } from './dto/static-analysis.dto';
 import { UploadsService } from '../uploads/uploads.service';
+import { JwtAuthGuard } from '../users/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../users/guards/optional-jwt-auth.guard';
+import { CurrentUser } from '../users/decorators/current-user.decorator';
+import { UserDocument } from '../users/schemas/user.schema';
 
 @Controller('static-analysis')
 export class StaticAnalysisController {
@@ -25,8 +31,10 @@ export class StaticAnalysisController {
     ) { }
 
     @Post('analyze-rust-contract')
+    @UseGuards(JwtAuthGuard)
     async analyzeRustContract(
         @Body() dto: StaticAnalysisDto,
+        @CurrentUser() user?: UserDocument,
     ): Promise<StaticAnalysisReport> {
         try {
             this.logger.log(
@@ -48,6 +56,7 @@ export class StaticAnalysisController {
                 dto.accessToken,
                 dto.selectedFiles,
                 dto.analysisOptions,
+                user ? String(user._id) : undefined,
             );
 
             this.logger.log(
@@ -85,10 +94,15 @@ export class StaticAnalysisController {
 
 
     @Post('reports')
-    async getAllReports(): Promise<StaticAnalysisReportDocument[]> {
+    @UseGuards(OptionalJwtAuthGuard)
+    async getAllReports(
+        @Request() req: any,
+    ): Promise<StaticAnalysisReportDocument[]> {
         try {
-            this.logger.log('Retrieving all analysis reports');
-            return await this.staticAnalysisService.getAllReports();
+            // Extract userId from authenticated user if available
+            const userId = req.user?._id?.toString();
+            this.logger.log(`Retrieving analysis reports${userId ? ` for user ${userId}` : ' (all reports)'}`);
+            return await this.staticAnalysisService.getAllReports(userId);
         } catch (error) {
             this.logger.error(`Failed to retrieve reports: ${error.message}`);
             throw new HttpException(
@@ -98,11 +112,63 @@ export class StaticAnalysisController {
         }
     }
 
+
+
     @Get('reports/:id')
     async getReportById(@Param('id') id: string): Promise<StaticAnalysisReportDocument | null> {
         this.logger.log(`Retrieving report for ${id}`);
         return await this.staticAnalysisService.getReportById(id);
 
+    }
+
+    /**
+     * Associate a report with the authenticated user
+     */
+    @Post('reports/:id/associate')
+    @UseGuards(JwtAuthGuard)
+    async associateReportWithUser(
+        @Param('id') reportId: string,
+        @CurrentUser() user: UserDocument,
+    ): Promise<{ success: boolean; message: string; report: StaticAnalysisReportDocument }> {
+        try {
+            this.logger.log(`Associating report ${reportId} with user ${String(user._id)}`);
+
+            const userId = String(user._id);
+            const report = await this.staticAnalysisService.associateReportWithUser(reportId, userId);
+
+            return {
+                success: true,
+                message: `Report successfully associated with user`,
+                report,
+            };
+        } catch (error) {
+            this.logger.error(`Failed to associate report with user: ${error.message}`);
+
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            // Check if error is about already associated
+            if (error.message.includes('already associated')) {
+                throw new HttpException(
+                    error.message,
+                    HttpStatus.CONFLICT,
+                );
+            }
+
+            // Check if error is about report not found
+            if (error.message.includes('not found')) {
+                throw new HttpException(
+                    error.message,
+                    HttpStatus.NOT_FOUND,
+                );
+            }
+
+            throw new HttpException(
+                `Failed to associate report with user: ${error.message}`,
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
     }
 
     @Post('reports/:repository')
@@ -142,8 +208,10 @@ export class StaticAnalysisController {
     }
 
     @Post('analyze-uploaded-contract')
+    @UseGuards(OptionalJwtAuthGuard)
     async analyzeUploadedContract(
         @Body() dto: { extractedPath: string; selectedFiles?: string[] },
+        @Request() req: any,
     ): Promise<StaticAnalysisReport> {
         try {
             this.logger.log(`Analyzing uploaded contract at: ${dto.extractedPath}`);
@@ -157,12 +225,16 @@ export class StaticAnalysisController {
                 );
             }
 
+            // Extract userId from authenticated user if available
+            const userId = req.user?._id?.toString();
+
             // Use static analysis service with uploaded files
             const report = await this.staticAnalysisService.analyzeUploadedContract(
                 dto.extractedPath,
                 uploadSession.projectName,
                 uploadSession.originalFilename,
                 dto.selectedFiles,
+                userId,
             );
 
             this.logger.log(`Successfully analyzed uploaded contract: ${uploadSession.projectName}`);

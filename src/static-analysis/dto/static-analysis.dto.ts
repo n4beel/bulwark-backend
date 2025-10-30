@@ -244,6 +244,9 @@ export interface StaticAnalysisReport {
     rust_analysis_success?: boolean;
   };
 
+  // User association - optional, reports may or may not have a userId
+  userId?: string;
+
   createdAt: Date;
   updatedAt: Date;
   __v?: number;

@@ -111,6 +111,10 @@ export class StaticAnalysisReport {
     @Prop({ type: Object, required: false })
     rustAugmentationRaw?: any;
 
+    // User association - optional, reports may or may not have a userId
+    @Prop({ type: String, required: false })
+    userId?: string;
+
     @Prop({ type: Object, required: true })
     performance: {
         analysisTime: number;

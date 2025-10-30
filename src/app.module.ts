@@ -8,6 +8,7 @@ import { StaticAnalysisModule } from './static-analysis/static-analysis.module';
 import { DatabaseModule } from './database/database.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { TestModule } from './test/test.module';
+import { UserModule } from './users/user.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TestModule } from './test/test.module';
       isGlobal: true,
     }),
     DatabaseModule,
+    UserModule,
     ScopingModule,
     AuthModule,
     StaticAnalysisModule,

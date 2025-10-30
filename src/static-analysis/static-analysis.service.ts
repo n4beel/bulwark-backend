@@ -67,6 +67,7 @@ export class StaticAnalysisService {
         accessToken: string,
         selectedFiles?: string[],
         _analysisOptions?: any,
+        userId?: string,
     ): Promise<StaticAnalysisReport> {
         this.logger.log(`Starting legacy static analysis for ${owner}/${repo}`);
 
@@ -206,6 +207,7 @@ export class StaticAnalysisService {
                     analysisTime: endTime - startTime,
                     memoryUsage: endMemory - startMemory,
                 },
+                userId: userId,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -245,10 +247,12 @@ export class StaticAnalysisService {
 
     /**
      * Get all saved analysis reports
+     * @param userId Optional user ID to filter reports by user
      */
-    async getAllReports(): Promise<StaticAnalysisReportDocument[]> {
+    async getAllReports(userId?: string): Promise<StaticAnalysisReportDocument[]> {
         try {
-            const reports = await this.staticAnalysisModel.find().sort({ createdAt: -1 }).exec();
+            const query = userId ? { userId } : {};
+            const reports = await this.staticAnalysisModel.find(query).sort({ createdAt: -1 }).exec();
             return reports.map(report => {
                 const obj = report.toObject();
                 return {
@@ -280,6 +284,44 @@ export class StaticAnalysisService {
     }
 
     /**
+     * Associate a report with a user
+     * @param reportId The ID of the report to associate
+     * @param userId The ID of the user to associate with
+     * @throws Error if report not found or already associated with a user
+     */
+    async associateReportWithUser(reportId: string, userId: string): Promise<StaticAnalysisReportDocument> {
+        try {
+            const report = await this.staticAnalysisModel.findById(reportId).exec();
+
+            if (!report) {
+                throw new NotFoundException(`Report with ID ${reportId} not found`);
+            }
+
+            const reportObj = report.toObject();
+
+            // Check if report already has a userId
+            if (reportObj.userId) {
+                throw new Error(`Report is already associated with user ${reportObj.userId}`);
+            }
+
+            // Update report with userId
+            report.userId = userId;
+            await report.save();
+
+            this.logger.log(`Successfully associated report ${reportId} with user ${userId}`);
+
+            const updatedObj = report.toObject();
+            return {
+                ...updatedObj,
+                _id: updatedObj._id.toString(),
+            } as StaticAnalysisReportDocument;
+        } catch (error) {
+            this.logger.error(`Failed to associate report with user: ${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
      * Get analysis report by repository name
      */
     async getReportByRepository(repository: string): Promise<StaticAnalysisReportDocument | null> {
@@ -307,6 +349,7 @@ export class StaticAnalysisService {
         accessToken: string,
         selectedFiles?: string[],
         analysisOptions?: any,
+        userId?: string,
     ): Promise<StaticAnalysisReport> {
         this.logger.log(`Starting workspace-based analysis for ${owner}/${repo}`);
 
@@ -329,7 +372,8 @@ export class StaticAnalysisService {
                     repoPath,
                     repoName,
                     `${owner}-${repo}.zip`, // Original filename for consistency
-                    selectedFiles
+                    selectedFiles,
+                    userId,
                 );
 
                 // Update the report with GitHub-specific information
@@ -365,6 +409,7 @@ export class StaticAnalysisService {
         projectName: string,
         originalFilename: string,
         selectedFiles?: string[],
+        userId?: string,
     ): Promise<StaticAnalysisReport> {
         const startTime = Date.now();
         const memoryStart = process.memoryUsage().heapUsed;
@@ -550,6 +595,7 @@ export class StaticAnalysisService {
                     rust_analysis_success: rustAnalysisSuccess,
                 },
 
+                userId: userId,
                 createdAt: new Date(),
                 updatedAt: new Date(),
 

@@ -8,10 +8,14 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
+import { UserService } from '../users/user.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) { }
+  constructor(
+    private authService: AuthService,
+    private userService: UserService,
+  ) { }
 
   /**
    * Get GitHub OAuth URL
@@ -39,9 +43,17 @@ export class AuthController {
     @Res() res: Response,
   ) {
     try {
-      // ... (your code to exchange token and get user) ...
+      // Exchange code for GitHub access token
       const accessToken = await this.authService.exchangeCodeForToken(code);
-      const user = await this.authService.getGitHubUser(accessToken);
+
+      // Get GitHub user info
+      const githubUser = await this.authService.getGitHubUser(accessToken);
+
+      // Find or create user in database
+      const user = await this.userService.findOrCreateUser(githubUser);
+
+      // Generate JWT token
+      const jwtToken = this.userService.generateToken(user);
 
       // --- Use the 'state' for the redirect ---
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -49,8 +61,16 @@ export class AuthController {
       // Use the 'state' as the return path.
       const returnPath = state || '/';
 
-      // This will now be: https://bulwark.blockapex.io/dashboard?token=...
-      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify(user))}`;
+      // Redirect with JWT token instead of GitHub token
+      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify({
+        id: String(user._id),
+        githubId: user.githubId,
+        githubUsername: user.githubUsername,
+        email: user.email,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        jwtToken: jwtToken,
+      }))}`;
 
       res.redirect(redirectUrl);
     } catch (error) {
