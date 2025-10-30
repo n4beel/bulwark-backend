@@ -21,9 +21,9 @@ export class AuthController {
    * Get GitHub OAuth URL
    */
   @Get('github/url')
-  getGitHubAuthUrl(@Query('from') from: string) {
+  getGitHubAuthUrl(@Query('from') from: string, @Query('mode') mode: string) {
     try {
-      const authUrl = this.authService.getGitHubAuthUrl(from);
+      const authUrl = this.authService.getGitHubAuthUrl(from, mode);
       return { authUrl };
     } catch (error) {
       throw new HttpException(
@@ -59,10 +59,11 @@ export class AuthController {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
       // Use the 'state' as the return path.
-      const returnPath = state || '/';
+      const returnPath = JSON.parse(state).path || '/';
+      const mode = JSON.parse(state).mode || 'auth';
 
       // Redirect with JWT token instead of GitHub token
-      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify({
+      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&mode=${mode}&user=${encodeURIComponent(JSON.stringify({
         id: String(user._id),
         githubId: user.githubId,
         githubUsername: user.githubUsername,
