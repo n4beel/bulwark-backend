@@ -5,6 +5,7 @@ import { GitHubService } from '../github/github.service';
 import { UploadsService } from '../uploads/uploads.service';
 import { RustAnalyzerService } from './rust-analyzer.service';
 import { AiAnalysisService } from '../ai-analysis/ai-analysis.service';
+import { ArciumStorageService } from '../arcium-storage/arcium-storage.service';
 import {
     RustAnalysisFactors,
     ComplexityScores,
@@ -53,6 +54,7 @@ export class StaticAnalysisService {
         @InjectModel(StaticAnalysisModel.name)
         private readonly staticAnalysisModel: Model<StaticAnalysisModel>,
         private readonly staticAnalysisUtils: StaticAnalysisUtils,
+        private readonly arciumStorageService: ArciumStorageService,
     ) { }
 
 
@@ -446,18 +448,18 @@ export class StaticAnalysisService {
             let aiAnalysisSuccess = false;
             let aiAnalysisError: string | null = null;
 
-            try {
-                aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
-                    extractedPath,
-                    rustAnalysisFactors,
-                    selectedFiles
-                );
-                aiAnalysisSuccess = true;
-                this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
-            } catch (aiErr) {
-                aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
-                this.logger.warn(aiAnalysisError);
-            }
+            // try {
+            //     aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
+            //         extractedPath,
+            //         rustAnalysisFactors,
+            //         selectedFiles
+            //     );
+            //     aiAnalysisSuccess = true;
+            //     this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
+            // } catch (aiErr) {
+            //     aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
+            //     this.logger.warn(aiAnalysisError);
+            // }
 
             // Step 5: Build triple analysis report
             const endTime = Date.now();
@@ -508,7 +510,6 @@ export class StaticAnalysisService {
                 // Use TypeScript analysis as base for backward compatibility
                 // analysisFactors: typescriptAnalysisFactors,
                 // scores: typescriptScores,
-                scores: this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores),
 
                 // Analysis metadata
                 analysis_engine: 'dual-analyzer',
@@ -552,13 +553,29 @@ export class StaticAnalysisService {
                 createdAt: new Date(),
                 updatedAt: new Date(),
 
-                result: this.staticAnalysisUtils.calculateResult(aiAnalysisFactors?.codeAnalysis || {})
+                ...this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores, aiAnalysisFactors?.codeAnalysis || {}),
             } as StaticAnalysisReport;
 
-            // Step 5: Save report to MongoDB
+            // Step 5: Store encrypted report results to Arcium storage
+            // try {
+            //     const auditData = this.staticAnalysisUtils.transformForSafeStorage(aiAnalysisFactors?.codeAnalysis || {});
+            //     const storageResult = await this.arciumStorageService.storeAuditResults(auditData);
+
+            //     if (storageResult.success) {
+            //         this.logger.log(`Audit results stored to Arcium: ${storageResult.message}`);
+            //     } else {
+            //         this.logger.warn(`Failed to store audit results to Arcium: ${storageResult.message}`);
+            //     }
+            // } catch (arciumError) {
+            //     this.logger.error(`Arcium storage error: ${arciumError.message}`, arciumError.stack);
+            //     // Don't fail the entire analysis if Arcium storage fails
+            // }
+
+            // Step 6: Save report to MongoDB
             try {
                 savedReport = new this.staticAnalysisModel(report);
                 await savedReport.save();
+
                 this.logger.log(`Report saved to database for uploaded contract: ${projectName}`);
             } catch (dbError) {
                 this.logger.error(`Failed to save report to database: ${dbError.message}`);

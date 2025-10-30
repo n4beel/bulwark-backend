@@ -6,6 +6,7 @@ import { RustAnalyzerService } from './rust-analyzer.service';
 import { GitHubModule } from '../github/github.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { AiAnalysisModule } from '../ai-analysis/ai-analysis.module';
+import { ArciumStorageModule } from '../arcium-storage/arcium-storage.module';
 import { StaticAnalysisReport, StaticAnalysisSchema } from './schemas/static-analysis.schema';
 import { StaticAnalysisUtils } from './static-analysis.utils';
 
@@ -14,6 +15,7 @@ import { StaticAnalysisUtils } from './static-analysis.utils';
     GitHubModule,
     UploadsModule,
     AiAnalysisModule,
+    ArciumStorageModule,
     MongooseModule.forFeature([
       { name: StaticAnalysisReport.name, schema: StaticAnalysisSchema },
     ]),
