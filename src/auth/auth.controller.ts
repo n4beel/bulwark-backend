@@ -61,9 +61,10 @@ export class AuthController {
       // Use the 'state' as the return path.
       const returnPath = JSON.parse(state).path || '/';
       const mode = JSON.parse(state).mode || 'auth';
+      console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ mode:", mode)
 
       // Redirect with JWT token instead of GitHub token
-      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&mode=${mode}&user=${encodeURIComponent(JSON.stringify({
+      const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify({
         id: String(user._id),
         githubId: user.githubId,
         githubUsername: user.githubUsername,
@@ -71,6 +72,7 @@ export class AuthController {
         name: user.name,
         avatarUrl: user.avatarUrl,
         jwtToken: jwtToken,
+        mode: mode,
       }))}`;
 
       res.redirect(redirectUrl);

@@ -96,6 +96,10 @@ export class AuthService {
      * Generate GitHub OAuth URL
      */
   getGitHubAuthUrl(fromPath?: string, mode?: string): string { // <-- 1. Accept the path
+
+    this.logger.log(`Generating GitHub Auth URL for mode: ${mode}`);
+    this.logger.log(`From path: ${fromPath}`);
+
     const clientId = this.configService.get<string>('GIT_CLIENT_ID');
     const redirectUri = this.configService.get<string>('GIT_CALLBACK_URL');
 
