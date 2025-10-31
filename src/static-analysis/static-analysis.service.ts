@@ -515,10 +515,10 @@ export class StaticAnalysisService {
             let aiAnalysisSuccess = false;
             let aiAnalysisError: string | null = null;
 
+            console.log("====================================================")
+            console.log("PERFORMING AI ANALYSIS");
+            console.log("====================================================")
             try {
-                console.log("====================================================")
-                console.log("PERFORMING AI ANALYSIS");
-                console.log("====================================================")
                 aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
                     extractedPath,
                     rustAnalysisFactors,
