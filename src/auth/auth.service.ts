@@ -95,7 +95,7 @@ export class AuthService {
   /**
      * Generate GitHub OAuth URL
      */
-  getGitHubAuthUrl(fromPath?: string, mode?: string): string { // <-- 1. Accept the path
+  getGitHubAuthUrl(fromPath?: string, mode?: string, reportId?: string): string { // <-- 1. Accept the path
 
     this.logger.log(`Generating GitHub Auth URL for mode: ${mode}`);
     this.logger.log(`From path: ${fromPath}`);
@@ -109,7 +109,7 @@ export class AuthService {
 
     // 2. Use the 'fromPath' as the state.
     //    Default to '/' if no path is provided.
-    const state = { path: fromPath || '/', mode: mode || 'auth' };
+    const state = { path: fromPath || '/', mode: mode || 'auth', reportId: reportId || '' };
 
     const params = new URLSearchParams({
       client_id: clientId,

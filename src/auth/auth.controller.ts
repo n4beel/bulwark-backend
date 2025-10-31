@@ -21,9 +21,9 @@ export class AuthController {
    * Get GitHub OAuth URL
    */
   @Get('github/url')
-  getGitHubAuthUrl(@Query('from') from: string, @Query('mode') mode: string) {
+  getGitHubAuthUrl(@Query('from') from: string, @Query('mode') mode: string, @Query('reportId') reportId: string) {
     try {
-      const authUrl = this.authService.getGitHubAuthUrl(from, mode);
+      const authUrl = this.authService.getGitHubAuthUrl(from, mode, reportId);
       return { authUrl };
     } catch (error) {
       throw new HttpException(
@@ -58,9 +58,12 @@ export class AuthController {
       // --- Use the 'state' for the redirect ---
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
+      const stateObject = JSON.parse(state);
+
       // Use the 'state' as the return path.
-      const returnPath = JSON.parse(state).path || '/';
-      const mode = JSON.parse(state).mode || 'auth';
+      const returnPath = stateObject.path || '/';
+      const mode = stateObject.mode || 'auth';
+      const reportId = stateObject.reportId || '';
       console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ mode:", mode)
 
       // Redirect with JWT token instead of GitHub token
@@ -73,6 +76,7 @@ export class AuthController {
         avatarUrl: user.avatarUrl,
         jwtToken: jwtToken,
         mode: mode,
+        reportId: reportId,
       }))}`;
 
       res.redirect(redirectUrl);
