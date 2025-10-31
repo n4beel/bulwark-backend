@@ -115,6 +115,13 @@ export class StaticAnalysisReport {
     @Prop({ type: String, required: false })
     userId?: string;
 
+    // Commit information
+    @Prop({ type: String, required: false })
+    commitHash?: string;
+
+    @Prop({ type: String, required: false })
+    commitUrl?: string;
+
     @Prop({ type: Object, required: true })
     performance: {
         analysisTime: number;

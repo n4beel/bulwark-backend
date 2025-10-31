@@ -247,6 +247,10 @@ export interface StaticAnalysisReport {
   // User association - optional, reports may or may not have a userId
   userId?: string;
 
+  // Commit information
+  commitHash?: string;
+  commitUrl?: string;
+
   createdAt: Date;
   updatedAt: Date;
   __v?: number;

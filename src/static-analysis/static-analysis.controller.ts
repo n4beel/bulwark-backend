@@ -31,7 +31,7 @@ export class StaticAnalysisController {
     ) { }
 
     @Post('analyze-rust-contract')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(OptionalJwtAuthGuard)
     async analyzeRustContract(
         @Body() dto: StaticAnalysisDto,
         @CurrentUser() user?: UserDocument,

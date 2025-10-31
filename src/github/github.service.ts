@@ -476,6 +476,81 @@ export class GitHubService {
   }
 
   /**
+   * Get the latest commit hash from a repository
+   */
+  async getLatestCommitHash(
+    owner: string,
+    repo: string,
+    accessToken: string,
+    branch: string = 'main',
+  ): Promise<string> {
+    try {
+      // Try main branch first, then master, then default branch
+      let commitHash: string | null = null;
+      
+      // Get default branch from repo info
+      const repoInfo = await this.getRepositoryInfo(owner, repo, accessToken);
+      const defaultBranch = repoInfo.default_branch || branch;
+
+      try {
+        const response = await axios.get(
+          `https://api.github.com/repos/${owner}/${repo}/commits/${defaultBranch}`,
+          {
+            headers: {
+              Authorization: `token ${accessToken}`,
+              Accept: 'application/vnd.github.v3+json',
+            },
+          },
+        );
+        commitHash = response.data.sha;
+      } catch (error) {
+        // Try master branch if main fails
+        if (defaultBranch !== 'master') {
+          try {
+            const response = await axios.get(
+              `https://api.github.com/repos/${owner}/${repo}/commits/master`,
+              {
+                headers: {
+                  Authorization: `token ${accessToken}`,
+                  Accept: 'application/vnd.github.v3+json',
+                },
+              },
+            );
+            commitHash = response.data.sha;
+          } catch (masterError) {
+            // Try getting latest commit from commits endpoint
+            const response = await axios.get(
+              `https://api.github.com/repos/${owner}/${repo}/commits`,
+              {
+                headers: {
+                  Authorization: `token ${accessToken}`,
+                  Accept: 'application/vnd.github.v3+json',
+                },
+                params: {
+                  per_page: 1,
+                },
+              },
+            );
+            if (response.data && response.data.length > 0) {
+              commitHash = response.data[0].sha;
+            }
+          }
+        }
+      }
+
+      if (!commitHash) {
+        throw new Error('Could not retrieve commit hash');
+      }
+
+      this.logger.log(`Retrieved latest commit hash for ${owner}/${repo}: ${commitHash}`);
+      return commitHash;
+    } catch (error) {
+      this.logger.error(`Failed to get latest commit hash: ${error.message}`);
+      throw new Error(`Failed to get latest commit hash: ${error.message}`);
+    }
+  }
+
+  /**
    * Clean up temporary repository
    */
   async cleanupRepository(repoPath: string): Promise<void> {

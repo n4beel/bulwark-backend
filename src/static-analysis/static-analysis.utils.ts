@@ -7,7 +7,7 @@ import { AuditStorageData } from "src/arcium-storage/arcium-storage.service";
 export class StaticAnalysisUtils {
     constructor() { }
 
-    calculateTotalScore(staticAnalysisScores: any, aiAnalysisFactors: CodeMetrics): { scores: any, result: any } {
+    calculateTotalScore(staticAnalysisScores: any, aiAnalysisFactors: CodeMetrics, repoData: any): { scores: any, result: any } {
         const structuralScore = (
             staticAnalysisScores.structural["total_statement_count"] * 0.25 +
             staticAnalysisScores.structural["number_of_functions/instructions_handlers"] * 0.25 +
@@ -52,26 +52,24 @@ export class StaticAnalysisUtils {
             total: totalScore,
         }
 
-        const result = this.calculateResult(aiAnalysisFactors, totalScore);
+        const result = this.calculateResult(aiAnalysisFactors, { totalScore, ...repoData });
 
         return { scores, result };
     }
 
-    calculateResult(aiAnalysisFactors: CodeMetrics, totalScore: number): any {
-
-
+    calculateResult(aiAnalysisFactors: CodeMetrics, repoData: any): any {
         return {
-            "filesCount": 0,
-            ...this.estimatedAuditEffort(totalScore),
+            "filesCount": repoData.filesCount,
+            ...this.estimatedAuditEffort(repoData.totalScore),
             "hotspots": {
                 "totalCount": aiAnalysisFactors?.highRiskHotspots?.length + aiAnalysisFactors?.mediumRiskHotspots?.length + aiAnalysisFactors?.findings?.length || 0,
                 "highRiskCount": aiAnalysisFactors?.highRiskHotspots?.length || 0,
                 "mediumRiskCount": aiAnalysisFactors?.mediumRiskHotspots?.length || 0,
                 "lowPriorityCount": aiAnalysisFactors?.findings?.length || 0
             },
-            "receiptId": "",
-            "commitUrl": "",
-            "hrefUrl": "",
+            "receiptId": repoData.receiptId,
+            "commitUrl": repoData.commitUrl,
+            "hrefUrl": repoData.hrefUrl,
         }
     }
 

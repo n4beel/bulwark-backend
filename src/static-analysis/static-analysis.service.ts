@@ -361,6 +361,17 @@ export class StaticAnalysisService {
             const repoUrl = repoInfo.clone_url;
             const repoName = `${owner}-${repo}`;
 
+            // Get latest commit hash
+            let commitHash: string | undefined;
+            let commitUrl: string | undefined;
+            try {
+                commitHash = await this.githubService.getLatestCommitHash(owner, repo, accessToken);
+                commitUrl = `https://github.com/${owner}/${repo}/tree/${commitHash}`;
+                this.logger.log(`Retrieved commit hash: ${commitHash}`);
+            } catch (error) {
+                this.logger.warn(`Failed to get commit hash: ${error.message}. Continuing without commit information.`);
+            }
+
             // Clone to temp/repos directory (GitHub service already clones to temp/repos)
             repoPath = await this.githubService.cloneRepository(repoUrl, repoName, accessToken);
             this.logger.log(`Repository cloned to: ${repoPath}`);
@@ -374,11 +385,19 @@ export class StaticAnalysisService {
                     `${owner}-${repo}.zip`, // Original filename for consistency
                     selectedFiles,
                     userId,
+                    commitUrl,
+                    commitHash
                 );
 
                 // Update the report with GitHub-specific information
                 report.repository = `${owner}/${repo}`;
                 report.repositoryUrl = repoInfo.html_url;
+                if (commitHash) {
+                    report.commitHash = commitHash;
+                }
+                if (commitUrl) {
+                    report.commitUrl = commitUrl;
+                }
 
                 this.logger.log(`Successfully completed workspace-based analysis for ${owner}/${repo}`);
                 return report;
@@ -410,6 +429,9 @@ export class StaticAnalysisService {
         originalFilename: string,
         selectedFiles?: string[],
         userId?: string,
+        commitUrl?: string,
+        commitHash?: string,
+
     ): Promise<StaticAnalysisReport> {
         const startTime = Date.now();
         const memoryStart = process.memoryUsage().heapUsed;
@@ -599,7 +621,13 @@ export class StaticAnalysisService {
                 createdAt: new Date(),
                 updatedAt: new Date(),
 
-                ...this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores, aiAnalysisFactors?.codeAnalysis || {}),
+                ...this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores, aiAnalysisFactors?.codeAnalysis || {}, {
+                    "filesCount": selectedFiles?.length || 0,
+                    "commitUrl": commitUrl,
+                    "receiptId": "52pwAr2w8uXCgY76aak9CQz5GZdLdn3KQ6xmzvDZUjvJAq54xEY8VvqQybAkQdPcS6g9vB1Wgn1MSgJFqTsiXTwW",
+                    "hrefUrl": "https://solscan.io/tx/5je68BW8Q77sEpfQCyxNWFSWbeyrxM6eRhKNJtoASi4NBm1C1bWu3RAdcx4soYZke4ZrJPj75z9p5xnLb8VLAa7h?cluster=devnet",
+                }),
+                commitHash: commitHash,
             } as StaticAnalysisReport;
 
             // Step 5: Store encrypted report results to Arcium storage
