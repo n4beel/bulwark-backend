@@ -77,6 +77,7 @@ export class AuthController {
         jwtToken: jwtToken,
         mode: mode,
         reportId: reportId,
+        from: returnPath,
       }))}`;
 
       res.redirect(redirectUrl);
