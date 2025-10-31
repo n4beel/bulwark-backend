@@ -624,6 +624,7 @@ export class StaticAnalysisService {
                 createdAt: new Date(),
                 updatedAt: new Date(),
 
+                // Calculate scores and result (audit effort estimates)
                 ...this.staticAnalysisUtils.calculateTotalScore(staticAnalysisScores, aiAnalysisFactors?.codeAnalysis || {}, {
                     "filesCount": selectedFiles?.length || 0,
                     "commitUrl": commitUrl,
