@@ -203,6 +203,8 @@ export class StaticAnalysisService {
                 framework,
                 // analysisFactors,
                 // scores,
+                scores: scores || {},
+                report: {}, // Legacy method doesn't calculate audit effort estimates
                 performance: {
                     analysisTime: endTime - startTime,
                     memoryUsage: endMemory - startMemory,
