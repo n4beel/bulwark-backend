@@ -68,8 +68,15 @@ export class AuthController {
       const reportId = stateObject.reportId || '';
       console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ mode:", mode)
 
+      console.log("====================================================")
+      console.log("CHECKING FOR REPORT ID");
+      console.log("====================================================")
+
       try {
         if (reportId && reportId !== '') {
+          console.log("====================================================")
+          console.log("ASSOCIATING REPORT WITH USER");
+          console.log("====================================================")
           const report = await this.staticAnalysisService.associateReportWithUser(reportId, String(user._id));
           console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ report:", report)
         }
