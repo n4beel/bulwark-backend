@@ -7,7 +7,7 @@ import { AuditStorageData } from "src/arcium-storage/arcium-storage.service";
 export class StaticAnalysisUtils {
     constructor() { }
 
-    calculateTotalScore(staticAnalysisScores: any, aiAnalysisFactors: CodeMetrics, repoData: any): { scores: any, result: any } {
+    calculateTotalScore(staticAnalysisScores: any, aiAnalysisFactors: CodeMetrics, repoData: any): { scores: any, report: any } {
         const structuralScore = (
             staticAnalysisScores.structural["total_statement_count"] * 0.25 +
             staticAnalysisScores.structural["number_of_functions/instructions_handlers"] * 0.25 +
@@ -52,9 +52,9 @@ export class StaticAnalysisUtils {
             total: totalScore,
         }
 
-        const result = this.calculateResult(aiAnalysisFactors, { totalScore, ...repoData });
+        const report = this.calculateResult(aiAnalysisFactors, { totalScore, ...repoData });
 
-        return { scores, result };
+        return { scores, report };
     }
 
     calculateResult(aiAnalysisFactors: CodeMetrics, repoData: any): any {

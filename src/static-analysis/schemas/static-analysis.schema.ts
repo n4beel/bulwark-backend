@@ -24,7 +24,7 @@ export class StaticAnalysisReport {
     scores: any;
 
     @Prop({ type: Object, required: true })
-    result: any;
+    report: any;
 
     // Static analysis scores - flexible object for various metrics
     @Prop({ type: Object, required: false })

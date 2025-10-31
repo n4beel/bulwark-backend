@@ -189,6 +189,10 @@ export interface StaticAnalysisReport {
   analyzer_version?: string;
   analysis_date?: string;
 
+  // Scores and report
+  scores: any;
+  report: any;
+
   // TypeScript analysis results
   typescript_analysis?: {
     engine: string;
