@@ -515,18 +515,18 @@ export class StaticAnalysisService {
             let aiAnalysisSuccess = false;
             let aiAnalysisError: string | null = null;
 
-            // try {
-            //     aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
-            //         extractedPath,
-            //         rustAnalysisFactors,
-            //         selectedFiles
-            //     );
-            //     aiAnalysisSuccess = true;
-            //     this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
-            // } catch (aiErr) {
-            //     aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
-            //     this.logger.warn(aiAnalysisError);
-            // }
+            try {
+                aiAnalysisFactors = await this.aiAnalysisService.analyzeFactors(
+                    extractedPath,
+                    rustAnalysisFactors,
+                    selectedFiles
+                );
+                aiAnalysisSuccess = true;
+                this.logger.log(`AI analysis completed successfully with ${Object.keys(aiAnalysisFactors).length} factors`);
+            } catch (aiErr) {
+                aiAnalysisError = `AI analysis failed: ${aiErr.message}`;
+                this.logger.warn(aiAnalysisError);
+            }
 
             // Step 5: Build triple analysis report
             const endTime = Date.now();

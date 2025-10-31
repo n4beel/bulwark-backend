@@ -9,12 +9,14 @@ import {
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UserService } from '../users/user.service';
+import { StaticAnalysisService } from 'src/static-analysis/static-analysis.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
     private userService: UserService,
+    private staticAnalysisService: StaticAnalysisService,
   ) { }
 
   /**
@@ -65,6 +67,16 @@ export class AuthController {
       const mode = stateObject.mode || 'auth';
       const reportId = stateObject.reportId || '';
       console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ mode:", mode)
+
+      try {
+        if (reportId && reportId !== '') {
+          const report = await this.staticAnalysisService.associateReportWithUser(reportId, String(user._id));
+          console.log("🚀 ~ AuthController ~ handleGitHubCallback ~ report:", report)
+        }
+      } catch (error) {
+        console.error('Failed to associate report with user:', error);
+      }
+
 
       // Redirect with JWT token instead of GitHub token
       const redirectUrl = `${frontendUrl}${returnPath}?token=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(JSON.stringify({
